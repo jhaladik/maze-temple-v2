@@ -1,0 +1,24 @@
+{
+  "name": "maze-temple-v2",
+  "version": "1.0.0",
+  "description": "🎮 MAZE-TEMPLE: Progressive Maze Game with AI-Ready Architecture - Training school for AI agents using DQN learning",
+  "main": "index.html",
+  "scripts": {
+    "dev": "echo 'Open index.html in your browser for local development'",
+    "deploy": "wrangler pages deploy . --project-name=maze-temple",
+    "test": "echo 'No tests yet - coming soon!'"
+  },
+  "keywords": [
+    "maze",
+    "game",
+    "ai",
+    "dqn",
+    "reinforcement-learning",
+    "imitation-learning",
+    "cloudflare-pages"
+  ],
+  "author": "AI Agent Training School",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {}
+}

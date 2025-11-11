@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 MAZE-TEMPLE: AI Agent Training School</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --cell-size: 32px;
+            --primary: #4f46e5;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --gold: #f59e0b;
+            --purple-dark: #1a1a2e;
+            --purple-light: #764ba2;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: white;
+        }
+
+        .game-container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .game-title {
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .game-title h1 {
+            font-size: 2.5em;
+            margin-bottom: 5px;
+        }
+
+        .game-title p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .game-header {
+            background: rgba(26, 26, 46, 0.8);
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .score, .timer, .level-info {
+            font-size: 1.2em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .score span, .timer span, .level-info span {
+            color: var(--gold);
+        }
+
+        .mode {
+            display: flex;
+            gap: 10px;
+        }
+
+        .mode button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, var(--primary), var(--purple-light));
+            color: white;
+        }
+
+        .mode button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.5);
+        }
+
+        .mode button.active {
+            background: var(--secondary);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+        }
+
+        .game-area {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .maze-container {
+            background: rgba(26, 26, 46, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .maze-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--maze-size, 15), var(--cell-size));
+            gap: 1px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2px;
+            border-radius: 8px;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a2e;
+            transition: all 0.2s ease;
+            font-size: 20px;
+            position: relative;
+        }
+
+        .cell.wall {
+            background: #2d2d44;
+        }
+
+        .cell.player {
+            background: radial-gradient(circle, var(--primary), transparent);
+            animation: pulse 0.8s infinite;
+        }
+
+        .cell.gem {
+            animation: sparkle 1s infinite;
+        }
+
+        .cell.bonus {
+            animation: rotate-sparkle 2s infinite;
+        }
+
+        .cell.trap {
+            animation: danger-pulse 1s infinite;
+        }
+
+        .cell.exit {
+            animation: glow 1.5s infinite;
+            background: radial-gradient(circle, var(--secondary), transparent);
+        }
+
+        .cell.shield-active, .cell.speed-active {
+            animation: power-glow 0.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes sparkle {
+            0%, 100% { opacity: 1; filter: brightness(1); }
+            50% { opacity: 0.8; filter: brightness(1.5); }
+        }
+
+        @keyframes rotate-sparkle {
+            0%, 100% { transform: rotate(0deg) scale(1); filter: brightness(1); }
+            50% { transform: rotate(180deg) scale(1.2); filter: brightness(1.8); }
+        }
+
+        @keyframes danger-pulse {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.5) saturate(1.5); }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 10px var(--secondary); }
+            50% { box-shadow: 0 0 20px var(--secondary), 0 0 30px var(--secondary); }
+        }
+
+        @keyframes power-glow {
+            0%, 100% { box-shadow: 0 0 10px var(--gold); }
+            50% { box-shadow: 0 0 20px var(--gold); }
+        }
+
+        .side-panel {
+            background: rgba(26, 26, 46, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            min-width: 250px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .stats {
+            margin-bottom: 20px;
+        }
+
+        .stats > div {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(79, 70, 229, 0.2);
+            border-radius: 8px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .stats .active {
+            border-left-color: var(--gold);
+            background: rgba(245, 158, 11, 0.2);
+            animation: pulse 0.5s infinite;
+        }
+
+        .leaderboard h3 {
+            margin-bottom: 10px;
+            color: var(--gold);
+        }
+
+        .leaderboard ol {
+            list-style-position: inside;
+            font-size: 0.9em;
+        }
+
+        .leaderboard li {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: rgba(79, 70, 229, 0.2);
+            border-radius: 6px;
+        }
+
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+            padding: 15px;
+            background: rgba(26, 26, 46, 0.8);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-over-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .game-over-modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, var(--primary), var(--purple-light));
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+        }
+
+        .modal-content h2 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+
+        .modal-content .stats-summary {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .modal-content .stats-summary div {
+            margin: 10px 0;
+            font-size: 1.2em;
+        }
+
+        .modal-content button {
+            padding: 12px 30px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+            color: var(--primary);
+        }
+
+        .modal-content button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            :root {
+                --cell-size: 24px;
+            }
+
+            .game-title h1 {
+                font-size: 1.8em;
+            }
+
+            .game-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .game-area {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-title">
+            <h1>🎮 MAZE-TEMPLE</h1>
+            <p>AI Agent Training School - Progressive Maze Challenge</p>
+        </div>
+
+        <div class="game-header">
+            <div class="score">💎 Score: <span id="score">0</span></div>
+            <div class="timer">⏱️ Time: <span id="timer">0:00</span></div>
+            <div class="level-info">📊 Level: <span id="level">1</span></div>
+            <div class="mode">
+                <button onclick="game.setMode('human')" class="active" id="btn-human">👤 Play</button>
+                <button onclick="game.setMode('ai')" id="btn-ai">🤖 Watch AI</button>
+                <button onclick="game.setMode('battle')" id="btn-battle">⚔️ Battle</button>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div class="maze-container">
+                <div id="maze" class="maze-grid"></div>
+            </div>
+
+            <div class="side-panel">
+                <div class="stats">
+                    <div>Steps: <span id="steps">0</span></div>
+                    <div>Keys: <span id="keys">0</span></div>
+                    <div id="shield-status">Shield: <span>OFF</span></div>
+                    <div id="speed-status">Speed: <span>1x</span></div>
+                </div>
+
+                <div class="leaderboard">
+                    <h3>🏆 Best Scores</h3>
+                    <ol id="topScores">
+                        <li>No scores yet!</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            Use <strong>ARROW KEYS</strong> or <strong>WASD</strong> to move |
+            <strong>R</strong> to restart |
+            <strong>N</strong> for next level
+        </div>
+    </div>
+
+    <div class="game-over-modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 id="modal-title">🎯 Level Complete!</h2>
+            <div class="stats-summary">
+                <div>Score: <span id="final-score">0</span></div>
+                <div>Time: <span id="final-time">0:00</span></div>
+                <div>Steps: <span id="final-steps">0</span></div>
+            </div>
+            <button onclick="game.nextLevel()">Next Level ➡️</button>
+            <button onclick="game.restart()">Restart Level 🔄</button>
+        </div>
+    </div>
+
+    <script>
+        // Game Constants
+        const ELEMENTS = {
+            empty: ' ',
+            wall: '⬛',
+            player: '🤖',
+            gem: '💎',
+            bonus: '⭐',
+            trap: '🔥',
+            key: '🔑',
+            door: '🚪',
+            exit: '🎯',
+            shield: '🛡️',
+            speed: '⚡',
+        };
+
+        const ACTIONS = {
+            UP: 0,
+            RIGHT: 1,
+            DOWN: 2,
+            LEFT: 3
+        };
+
+        const DIFFICULTY_CONFIGS = {
+            1: { gems: 5, traps: 2, keys: 0, doors: 0, bonus: 1 },
+            2: { gems: 8, traps: 4, keys: 0, doors: 0, bonus: 1 },
+            3: { gems: 10, traps: 6, keys: 1, doors: 1, bonus: 2 },
+            4: { gems: 12, traps: 8, keys: 1, doors: 2, bonus: 2 },
+            5: { gems: 15, traps: 10, keys: 2, doors: 2, bonus: 3 },
+            6: { gems: 18, traps: 12, keys: 2, doors: 3, bonus: 3 },
+            7: { gems: 20, traps: 14, keys: 2, doors: 3, bonus: 4 },
+            8: { gems: 22, traps: 16, keys: 3, doors: 4, bonus: 4 },
+            9: { gems: 25, traps: 18, keys: 3, doors: 4, bonus: 5 },
+            10: { gems: 30, traps: 20, keys: 4, doors: 5, bonus: 5 }
+        };
+
+        // Game State Class
+        class GameState {
+            constructor(size = 15, level = 1) {
+                this.size = size;
+                this.level = level;
+                this.maze = [];
+                this.player = {
+                    x: 0,
+                    y: 0,
+                    score: 0,
+                    keys: 0,
+                    shields: 0,
+                    speed: 1,
+                    steps: 0,
+                    path: []
+                };
+                this.powerUps = {
+                    shieldActive: false,
+                    shieldEnd: 0,
+                    speedActive: false,
+                    speedEnd: 0
+                };
+                this.timeElapsed = 0;
+                this.gameMode = 'human';
+                this.gameOver = false;
+                this.won = false;
+                this.startTime = Date.now();
+            }
+
+            getStateVector() {
+                // Return flat array of features for neural network
+                const localGrid = this.getLocalGrid(3);
+                const distToExit = this.getDistanceToExit();
+                const nearestGem = this.getNearestGemDirection();
+
+                return [
+                    this.player.x / this.size,
+                    this.player.y / this.size,
+                    this.player.score / 100,
+                    ...localGrid,
+                    distToExit,
+                    ...nearestGem,
+                    this.powerUps.shieldActive ? 1 : 0,
+                    this.powerUps.speedActive ? 1 : 0
+                ];
+            }
+
+            getLocalGrid(radius) {
+                const grid = [];
+                for (let dy = -radius; dy <= radius; dy++) {
+                    for (let dx = -radius; dx <= radius; dx++) {
+                        const x = this.player.x + dx;
+                        const y = this.player.y + dy;
+                        if (x >= 0 && x < this.size && y >= 0 && y < this.size) {
+                            const cell = this.maze[y][x];
+                            grid.push(this.cellToNumber(cell));
+                        } else {
+                            grid.push(-1); // Out of bounds
+                        }
+                    }
+                }
+                return grid;
+            }
+
+            cellToNumber(cell) {
+                const mapping = {
+                    [ELEMENTS.empty]: 0,
+                    [ELEMENTS.wall]: 1,
+                    [ELEMENTS.gem]: 2,
+                    [ELEMENTS.bonus]: 3,
+                    [ELEMENTS.trap]: 4,
+                    [ELEMENTS.key]: 5,
+                    [ELEMENTS.door]: 6,
+                    [ELEMENTS.exit]: 7,
+                    [ELEMENTS.shield]: 8,
+                    [ELEMENTS.speed]: 9
+                };
+                return mapping[cell] || 0;
+            }
+
+            getDistanceToExit() {
+                // Find exit
+                for (let y = 0; y < this.size; y++) {
+                    for (let x = 0; x < this.size; x++) {
+                        if (this.maze[y][x] === ELEMENTS.exit) {
+                            const dx = x - this.player.x;
+                            const dy = y - this.player.y;
+                            return Math.sqrt(dx * dx + dy * dy) / this.size;
+                        }
+                    }
+                }
+                return 1;
+            }
+
+            getNearestGemDirection() {
+                let minDist = Infinity;
+                let nearestX = 0;
+                let nearestY = 0;
+
+                for (let y = 0; y < this.size; y++) {
+                    for (let x = 0; x < this.size; x++) {
+                        if (this.maze[y][x] === ELEMENTS.gem || this.maze[y][x] === ELEMENTS.bonus) {
+                            const dist = Math.abs(x - this.player.x) + Math.abs(y - this.player.y);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                nearestX = x;
+                                nearestY = y;
+                            }
+                        }
+                    }
+                }
+
+                const dx = nearestX - this.player.x;
+                const dy = nearestY - this.player.y;
+                return [dx / this.size, dy / this.size];
+            }
+
+            executeAction(action) {
+                const directions = [
+                    [0, -1], // UP
+                    [1, 0],  // RIGHT
+                    [0, 1],  // DOWN
+                    [-1, 0]  // LEFT
+                ];
+
+                const [dx, dy] = directions[action];
+                const newX = this.player.x + dx;
+                const newY = this.player.y + dy;
+
+                let reward = -1; // Small penalty for each step
+                let moved = false;
+
+                // Check bounds
+                if (newX >= 0 && newX < this.size && newY >= 0 && newY < this.size) {
+                    const targetCell = this.maze[newY][newX];
+
+                    // Check what's in the target cell
+                    if (targetCell !== ELEMENTS.wall) {
+                        if (targetCell === ELEMENTS.door) {
+                            if (this.player.keys > 0) {
+                                this.player.keys--;
+                                this.maze[newY][newX] = ELEMENTS.empty;
+                                moved = true;
+                                reward = 5;
+                            }
+                        } else {
+                            // Handle collectibles
+                            switch (targetCell) {
+                                case ELEMENTS.gem:
+                                    this.player.score += 10;
+                                    reward = 10;
+                                    break;
+                                case ELEMENTS.bonus:
+                                    this.player.score += 50;
+                                    reward = 50;
+                                    break;
+                                case ELEMENTS.trap:
+                                    if (!this.powerUps.shieldActive) {
+                                        this.player.score = Math.max(0, this.player.score - 20);
+                                        reward = -20;
+                                    } else {
+                                        reward = 0; // Shield protected
+                                    }
+                                    break;
+                                case ELEMENTS.key:
+                                    this.player.keys++;
+                                    reward = 15;
+                                    break;
+                                case ELEMENTS.shield:
+                                    this.activateShield();
+                                    reward = 20;
+                                    break;
+                                case ELEMENTS.speed:
+                                    this.activateSpeed();
+                                    reward = 20;
+                                    break;
+                                case ELEMENTS.exit:
+                                    this.won = true;
+                                    this.gameOver = true;
+                                    reward = 100;
+                                    break;
+                            }
+
+                            // Clear the cell if it's a collectible
+                            if (targetCell !== ELEMENTS.empty && targetCell !== ELEMENTS.exit) {
+                                this.maze[newY][newX] = ELEMENTS.empty;
+                            }
+
+                            moved = true;
+                        }
+                    }
+                }
+
+                if (moved) {
+                    this.player.x = newX;
+                    this.player.y = newY;
+                    this.player.steps++;
+                    this.player.path.push({ x: newX, y: newY, action });
+                }
+
+                // Update power-ups
+                const now = Date.now();
+                if (this.powerUps.shieldActive && now > this.powerUps.shieldEnd) {
+                    this.powerUps.shieldActive = false;
+                }
+                if (this.powerUps.speedActive && now > this.powerUps.speedEnd) {
+                    this.powerUps.speedActive = false;
+                    this.player.speed = 1;
+                }
+
+                return [this.getStateVector(), reward, this.gameOver];
+            }
+
+            activateShield() {
+                this.powerUps.shieldActive = true;
+                this.powerUps.shieldEnd = Date.now() + 5000;
+            }
+
+            activateSpeed() {
+                this.powerUps.speedActive = true;
+                this.powerUps.speedEnd = Date.now() + 5000;
+                this.player.speed = 2;
+            }
+        }
+
+        // Maze Generator
+        class MazeGenerator {
+            static generate(size, level) {
+                const maze = Array(size).fill().map(() => Array(size).fill(ELEMENTS.wall));
+
+                // Generate maze using recursive backtracking
+                this.recursiveBacktrack(maze, 1, 1, size);
+
+                // Place player at start
+                maze[1][1] = ELEMENTS.empty;
+
+                // Place exit (far from start)
+                const exitPos = this.findFarthestPoint(maze, 1, 1, size);
+                maze[exitPos.y][exitPos.x] = ELEMENTS.exit;
+
+                // Get difficulty config
+                const config = DIFFICULTY_CONFIGS[Math.min(level, 10)] || DIFFICULTY_CONFIGS[1];
+
+                // Place collectibles
+                this.placeRandomElements(maze, ELEMENTS.gem, config.gems, size);
+                this.placeRandomElements(maze, ELEMENTS.bonus, config.bonus, size);
+                this.placeRandomElements(maze, ELEMENTS.trap, config.traps, size);
+
+                if (config.keys > 0) {
+                    this.placeRandomElements(maze, ELEMENTS.key, config.keys, size);
+                    this.placeRandomElements(maze, ELEMENTS.door, config.doors, size);
+                }
+
+                if (level >= 5) {
+                    this.placeRandomElements(maze, ELEMENTS.shield, 1, size);
+                    this.placeRandomElements(maze, ELEMENTS.speed, 1, size);
+                }
+
+                return maze;
+            }
+
+            static recursiveBacktrack(maze, x, y, size) {
+                const directions = [
+                    [0, -2], [2, 0], [0, 2], [-2, 0]
+                ];
+
+                // Shuffle directions
+                for (let i = directions.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [directions[i], directions[j]] = [directions[j], directions[i]];
+                }
+
+                maze[y][x] = ELEMENTS.empty;
+
+                for (const [dx, dy] of directions) {
+                    const newX = x + dx;
+                    const newY = y + dy;
+                    const wallX = x + dx / 2;
+                    const wallY = y + dy / 2;
+
+                    if (newX > 0 && newX < size - 1 && newY > 0 && newY < size - 1 &&
+                        maze[newY][newX] === ELEMENTS.wall) {
+                        maze[wallY][wallX] = ELEMENTS.empty;
+                        this.recursiveBacktrack(maze, newX, newY, size);
+                    }
+                }
+            }
+
+            static findFarthestPoint(maze, startX, startY, size) {
+                let maxDist = 0;
+                let farthest = { x: size - 2, y: size - 2 };
+
+                for (let y = 1; y < size - 1; y++) {
+                    for (let x = 1; x < size - 1; x++) {
+                        if (maze[y][x] === ELEMENTS.empty) {
+                            const dist = Math.abs(x - startX) + Math.abs(y - startY);
+                            if (dist > maxDist) {
+                                maxDist = dist;
+                                farthest = { x, y };
+                            }
+                        }
+                    }
+                }
+
+                return farthest;
+            }
+
+            static placeRandomElements(maze, element, count, size) {
+                let placed = 0;
+                let attempts = 0;
+                const maxAttempts = count * 10;
+
+                while (placed < count && attempts < maxAttempts) {
+                    const x = Math.floor(Math.random() * (size - 2)) + 1;
+                    const y = Math.floor(Math.random() * (size - 2)) + 1;
+
+                    if (maze[y][x] === ELEMENTS.empty) {
+                        maze[y][x] = element;
+                        placed++;
+                    }
+                    attempts++;
+                }
+            }
+        }
+
+        // Demo Recorder
+        class DemoRecorder {
+            constructor() {
+                this.recording = false;
+                this.currentDemo = [];
+            }
+
+            startRecording() {
+                this.recording = true;
+                this.currentDemo = [];
+            }
+
+            recordStep(state, action, reward) {
+                if (this.recording) {
+                    this.currentDemo.push({
+                        state: state.getStateVector(),
+                        action: action,
+                        reward: reward,
+                        timestamp: Date.now()
+                    });
+                }
+            }
+
+            saveDemo(score, steps) {
+                if (this.currentDemo.length === 0) return;
+
+                try {
+                    const demos = JSON.parse(localStorage.getItem('mazeTemple_demos') || '[]');
+                    demos.push({
+                        id: Date.now(),
+                        score: score,
+                        steps: steps,
+                        data: this.currentDemo,
+                        date: new Date().toISOString()
+                    });
+
+                    // Keep only last 10 demos
+                    if (demos.length > 10) {
+                        demos.shift();
+                    }
+
+                    localStorage.setItem('mazeTemple_demos', JSON.stringify(demos));
+                    console.log(`Demo saved: ${this.currentDemo.length} steps, score ${score}`);
+                } catch (e) {
+                    console.error('Failed to save demo:', e);
+                }
+
+                this.currentDemo = [];
+                this.recording = false;
+            }
+
+            stopRecording() {
+                this.recording = false;
+            }
+        }
+
+        // Simple AI (for future use)
+        class SimpleAI {
+            constructor(gameState) {
+                this.gameState = gameState;
+                this.qTable = this.loadQTable() || {};
+            }
+
+            selectAction() {
+                // Simple greedy strategy: move towards nearest gem or exit
+                const nearestGem = this.gameState.getNearestGemDirection();
+                const [dx, dy] = nearestGem;
+
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    return dx > 0 ? ACTIONS.RIGHT : ACTIONS.LEFT;
+                } else {
+                    return dy > 0 ? ACTIONS.DOWN : ACTIONS.UP;
+                }
+            }
+
+            loadQTable() {
+                try {
+                    return JSON.parse(localStorage.getItem('mazeTemple_qTable') || '{}');
+                } catch {
+                    return {};
+                }
+            }
+
+            saveQTable() {
+                try {
+                    localStorage.setItem('mazeTemple_qTable', JSON.stringify(this.qTable));
+                } catch (e) {
+                    console.error('Failed to save Q-table:', e);
+                }
+            }
+        }
+
+        // Main Game Class
+        class MazeGame {
+            constructor() {
+                this.state = null;
+                this.recorder = new DemoRecorder();
+                this.mode = 'human';
+                this.currentLevel = 1;
+                this.timerInterval = null;
+                this.touchStartX = 0;
+                this.touchStartY = 0;
+
+                this.init();
+            }
+
+            init() {
+                this.state = new GameState(15, this.currentLevel);
+                this.state.maze = MazeGenerator.generate(15, this.currentLevel);
+                this.state.player.x = 1;
+                this.state.player.y = 1;
+
+                this.render();
+                this.bindControls();
+                this.startTimer();
+                this.updateLeaderboard();
+
+                if (this.mode === 'human') {
+                    this.recorder.startRecording();
+                }
+            }
+
+            bindControls() {
+                // Keyboard controls
+                document.addEventListener('keydown', (e) => this.handleKeyPress(e));
+
+                // Touch controls
+                const maze = document.getElementById('maze');
+                maze.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
+                maze.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: false });
+            }
+
+            handleKeyPress(e) {
+                if (this.state.gameOver || this.mode !== 'human') return;
+
+                let action = -1;
+
+                switch(e.key.toLowerCase()) {
+                    case 'arrowup':
+                    case 'w':
+                        action = ACTIONS.UP;
+                        e.preventDefault();
+                        break;
+                    case 'arrowright':
+                    case 'd':
+                        action = ACTIONS.RIGHT;
+                        e.preventDefault();
+                        break;
+                    case 'arrowdown':
+                    case 's':
+                        action = ACTIONS.DOWN;
+                        e.preventDefault();
+                        break;
+                    case 'arrowleft':
+                    case 'a':
+                        action = ACTIONS.LEFT;
+                        e.preventDefault();
+                        break;
+                    case 'r':
+                        this.restart();
+                        return;
+                    case 'n':
+                        this.nextLevel();
+                        return;
+                }
+
+                if (action !== -1) {
+                    this.performAction(action);
+                }
+            }
+
+            handleTouchStart(e) {
+                this.touchStartX = e.touches[0].clientX;
+                this.touchStartY = e.touches[0].clientY;
+                e.preventDefault();
+            }
+
+            handleTouchEnd(e) {
+                if (this.state.gameOver || this.mode !== 'human') return;
+
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+
+                const dx = touchEndX - this.touchStartX;
+                const dy = touchEndY - this.touchStartY;
+
+                const minSwipe = 30;
+                let action = -1;
+
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    if (Math.abs(dx) > minSwipe) {
+                        action = dx > 0 ? ACTIONS.RIGHT : ACTIONS.LEFT;
+                    }
+                } else {
+                    if (Math.abs(dy) > minSwipe) {
+                        action = dy > 0 ? ACTIONS.DOWN : ACTIONS.UP;
+                    }
+                }
+
+                if (action !== -1) {
+                    this.performAction(action);
+                }
+
+                e.preventDefault();
+            }
+
+            performAction(action) {
+                const prevState = { ...this.state };
+                const [newState, reward, done] = this.state.executeAction(action);
+
+                if (this.mode === 'human') {
+                    this.recorder.recordStep(this.state, action, reward);
+                }
+
+                this.render();
+                this.updateUI();
+
+                if (done && this.state.won) {
+                    this.handleLevelComplete();
+                }
+            }
+
+            render() {
+                const mazeElement = document.getElementById('maze');
+                mazeElement.innerHTML = '';
+                mazeElement.style.setProperty('--maze-size', this.state.size);
+
+                for (let y = 0; y < this.state.size; y++) {
+                    for (let x = 0; x < this.state.size; x++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+
+                        // Check if player is here
+                        if (x === this.state.player.x && y === this.state.player.y) {
+                            cell.textContent = ELEMENTS.player;
+                            cell.classList.add('player');
+
+                            if (this.state.powerUps.shieldActive) {
+                                cell.classList.add('shield-active');
+                            }
+                            if (this.state.powerUps.speedActive) {
+                                cell.classList.add('speed-active');
+                            }
+                        } else {
+                            const element = this.state.maze[y][x];
+                            cell.textContent = element;
+
+                            if (element === ELEMENTS.wall) cell.classList.add('wall');
+                            else if (element === ELEMENTS.gem) cell.classList.add('gem');
+                            else if (element === ELEMENTS.bonus) cell.classList.add('bonus');
+                            else if (element === ELEMENTS.trap) cell.classList.add('trap');
+                            else if (element === ELEMENTS.exit) cell.classList.add('exit');
+                        }
+
+                        mazeElement.appendChild(cell);
+                    }
+                }
+            }
+
+            updateUI() {
+                document.getElementById('score').textContent = this.state.player.score;
+                document.getElementById('steps').textContent = this.state.player.steps;
+                document.getElementById('keys').textContent = this.state.player.keys;
+                document.getElementById('level').textContent = this.currentLevel;
+
+                const shieldStatus = document.getElementById('shield-status');
+                if (this.state.powerUps.shieldActive) {
+                    shieldStatus.innerHTML = 'Shield: <span>🛡️ ACTIVE</span>';
+                    shieldStatus.classList.add('active');
+                } else {
+                    shieldStatus.innerHTML = 'Shield: <span>OFF</span>';
+                    shieldStatus.classList.remove('active');
+                }
+
+                const speedStatus = document.getElementById('speed-status');
+                if (this.state.powerUps.speedActive) {
+                    speedStatus.innerHTML = 'Speed: <span>⚡ 2x</span>';
+                    speedStatus.classList.add('active');
+                } else {
+                    speedStatus.innerHTML = 'Speed: <span>1x</span>';
+                    speedStatus.classList.remove('active');
+                }
+            }
+
+            startTimer() {
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                }
+
+                this.timerInterval = setInterval(() => {
+                    if (!this.state.gameOver) {
+                        this.state.timeElapsed = Math.floor((Date.now() - this.state.startTime) / 1000);
+                        const minutes = Math.floor(this.state.timeElapsed / 60);
+                        const seconds = this.state.timeElapsed % 60;
+                        document.getElementById('timer').textContent =
+                            `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    }
+                }, 1000);
+            }
+
+            handleLevelComplete() {
+                this.state.gameOver = true;
+                clearInterval(this.timerInterval);
+
+                // Save demo
+                if (this.mode === 'human') {
+                    this.recorder.saveDemo(this.state.player.score, this.state.player.steps);
+                }
+
+                // Save high score
+                this.saveHighScore();
+
+                // Show modal
+                this.showGameOverModal();
+            }
+
+            showGameOverModal() {
+                const modal = document.getElementById('gameOverModal');
+                document.getElementById('modal-title').textContent = '🎯 Level Complete!';
+                document.getElementById('final-score').textContent = this.state.player.score;
+
+                const minutes = Math.floor(this.state.timeElapsed / 60);
+                const seconds = this.state.timeElapsed % 60;
+                document.getElementById('final-time').textContent =
+                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                document.getElementById('final-steps').textContent = this.state.player.steps;
+                modal.classList.add('show');
+            }
+
+            hideGameOverModal() {
+                document.getElementById('gameOverModal').classList.remove('show');
+            }
+
+            saveHighScore() {
+                try {
+                    const scores = JSON.parse(localStorage.getItem('mazeTemple_scores') || '[]');
+                    scores.push({
+                        score: this.state.player.score,
+                        time: this.state.timeElapsed,
+                        steps: this.state.player.steps,
+                        level: this.currentLevel,
+                        date: new Date().toISOString()
+                    });
+
+                    // Sort by score (descending)
+                    scores.sort((a, b) => b.score - a.score);
+
+                    // Keep top 10
+                    const topScores = scores.slice(0, 10);
+                    localStorage.setItem('mazeTemple_scores', JSON.stringify(topScores));
+
+                    this.updateLeaderboard();
+                } catch (e) {
+                    console.error('Failed to save score:', e);
+                }
+            }
+
+            updateLeaderboard() {
+                try {
+                    const scores = JSON.parse(localStorage.getItem('mazeTemple_scores') || '[]');
+                    const leaderboard = document.getElementById('topScores');
+
+                    if (scores.length === 0) {
+                        leaderboard.innerHTML = '<li>No scores yet!</li>';
+                        return;
+                    }
+
+                    leaderboard.innerHTML = scores.slice(0, 5).map((s, i) => {
+                        const minutes = Math.floor(s.time / 60);
+                        const seconds = s.time % 60;
+                        return `<li>L${s.level}: ${s.score} pts (${minutes}:${seconds.toString().padStart(2, '0')})</li>`;
+                    }).join('');
+                } catch (e) {
+                    console.error('Failed to load leaderboard:', e);
+                }
+            }
+
+            setMode(mode) {
+                this.mode = mode;
+
+                // Update button styles
+                document.querySelectorAll('.mode button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.getElementById(`btn-${mode}`).classList.add('active');
+
+                if (mode === 'ai') {
+                    alert('AI mode coming soon! Train your agent with DQN learning.');
+                } else if (mode === 'battle') {
+                    alert('Battle mode coming soon! Compete against AI agents.');
+                }
+
+                this.restart();
+            }
+
+            restart() {
+                this.hideGameOverModal();
+                clearInterval(this.timerInterval);
+                this.init();
+            }
+
+            nextLevel() {
+                this.currentLevel++;
+                this.hideGameOverModal();
+                clearInterval(this.timerInterval);
+                this.init();
+            }
+        }
+
+        // Initialize game when page loads
+        let game;
+        window.addEventListener('DOMContentLoaded', () => {
+            game = new MazeGame();
+        });
+    </script>
+</body>
+</html>
