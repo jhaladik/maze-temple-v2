@@ -261,7 +261,7 @@ body {
 }
 
 .game-over-modal.show {
-    display: flex;
+    display: flex !important;
 }
 
 .modal-content {
@@ -357,7 +357,7 @@ body {
 }
 
 .settings-modal.show {
-    display: flex;
+    display: flex !important;
 }
 
 .settings-content {
@@ -611,14 +611,15 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.95);
     z-index: 1000;
     align-items: center;
     justify-content: center;
+    overflow-y: auto;
 }
 
 .level-select-modal.show {
-    display: flex;
+    display: flex !important;
 }
 
 .level-select-content {
@@ -631,6 +632,19 @@ body {
     overflow-y: auto;
     border: 2px solid var(--gold);
     box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+    animation: modalFadeIn 0.3s ease;
+    margin: 20px;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 
 .level-select-content h2 {
@@ -756,14 +770,15 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.95);
     z-index: 1100;
     align-items: center;
     justify-content: center;
+    overflow-y: auto;
 }
 
 .level-intro-modal.show {
-    display: flex;
+    display: flex !important;
 }
 
 .level-intro-content {
@@ -774,6 +789,10 @@ body {
     width: 90%;
     border: 2px solid var(--gold);
     box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+    animation: modalFadeIn 0.3s ease;
+    margin: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .level-intro-content h2 {
