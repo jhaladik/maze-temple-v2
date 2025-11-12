@@ -8,6 +8,7 @@ import { MazeGenerator } from './MazeGenerator.js';
 import { DemoRecorder } from './DemoRecorder.js';
 import { MazeAnalyzer } from './MazeAnalyzer.js';
 import { PerformanceEvaluator } from './PerformanceEvaluator.js';
+import { WORLDS, getLevelById, isLevelUnlocked, calculateStarsForLevel, getMaxStars } from '../config/levels.js';
 
 export class MazeGame {
     constructor() {
@@ -15,6 +16,8 @@ export class MazeGame {
         this.recorder = new DemoRecorder();
         this.mode = 'human';
         this.currentLevel = 1;
+        this.currentLevelConfig = null; // Store current level configuration
+        this.selectedLevel = null; // Track level selected from level select screen
         this.timerInterval = null;
         this.touchStartX = 0;
         this.touchStartY = 0;
@@ -27,14 +30,28 @@ export class MazeGame {
         this.mazeAnalyzer = null;
         this.performanceEvaluator = null;
 
+        // Start with player's current level
+        this.currentLevel = this.playerSettings.getCurrentLevel();
+
         this.init();
         this.updatePlayerDisplay();
+        this.updateTotalStarsDisplay();
     }
 
     init() {
-        const mazeSize = this.playerSettings.mazeSize;
-        const mazeType = this.playerSettings.mazeType || 'classic';
-        const complexity = this.playerSettings.mazeComplexity || 'medium';
+        // Load level configuration
+        this.currentLevelConfig = getLevelById(this.currentLevel);
+
+        if (!this.currentLevelConfig) {
+            console.error(`Level ${this.currentLevel} not found! Falling back to level 1.`);
+            this.currentLevel = 1;
+            this.currentLevelConfig = getLevelById(1);
+        }
+
+        const config = this.currentLevelConfig;
+        const mazeSize = config.size;
+        const mazeType = config.mazeType;
+        const complexity = config.complexity;
 
         this.state = new GameState(mazeSize, this.currentLevel);
         this.state.maze = MazeGenerator.generate(mazeSize, this.currentLevel, mazeType, complexity);
@@ -44,13 +61,19 @@ export class MazeGame {
 
         // Count total gems in maze
         this.state.totalGems = 0;
+        let bonusCount = 0;
         for (let y = 0; y < mazeSize; y++) {
             for (let x = 0; x < mazeSize; x++) {
                 if (this.state.maze[y][x] === ELEMENTS.gem) {
                     this.state.totalGems++;
                 }
+                if (this.state.maze[y][x] === ELEMENTS.bonus) {
+                    bonusCount++;
+                }
             }
         }
+        this.state.totalBonus = bonusCount;
+        this.state.bonusCollected = false;
 
         // Update cell size for different maze sizes
         const sizeConfig = MAZE_SIZES[mazeSize];
@@ -368,12 +391,14 @@ export class MazeGame {
         // Use the new scoring system
         this.state.player.score = evaluation.score.final;
 
-        // Calculate stars from evaluation
-        const stars = evaluation.rating.stars;
+        // Calculate stars based on level-specific requirements
+        const stars = calculateStarsForLevel(this.currentLevelConfig, this.state);
+        console.log(`Level ${this.currentLevel} completed with ${stars} stars`);
 
         // Save progress
         this.playerSettings.addScore(this.state.player.score);
         this.playerSettings.completeLevel(this.currentLevel, stars);
+        this.updateTotalStarsDisplay();
 
         // Save demo
         if (this.mode === 'human') {
@@ -453,13 +478,17 @@ export class MazeGame {
 
         document.getElementById('final-steps').textContent = this.state.player.steps;
 
+        // Display level objectives completion
+        const bonusInfo = document.getElementById('bonus-info');
+        const objectivesHTML = this.getObjectivesCompletionHTML();
+        bonusInfo.innerHTML = objectivesHTML;
+
         // Display performance evaluation
         if (evaluation) {
-            const bonusInfo = document.getElementById('bonus-info');
             const perfInfo = document.getElementById('performance-info');
 
-            // Display rating and grade
-            bonusInfo.innerHTML = `Grade: ${evaluation.rating.grade} - ${evaluation.rating.description}`;
+            // Add grade to objectives display
+            bonusInfo.innerHTML += `<div style="margin-top: 10px;">Grade: ${evaluation.rating.grade} - ${evaluation.rating.description}</div>`;
 
             // Display efficiency metrics
             if (perfInfo) {
@@ -733,5 +762,189 @@ export class MazeGame {
 
         // Restart with new settings
         this.restart();
+    }
+
+    // Level Select Modal Methods
+    showLevelSelect() {
+        const modal = document.getElementById('levelSelectModal');
+        const totalStars = this.playerSettings.getTotalStars();
+
+        // Update progress summary
+        document.getElementById('modal-total-stars').textContent = totalStars;
+        document.getElementById('modal-max-stars').textContent = getMaxStars();
+        document.getElementById('levels-completed-count').textContent = this.playerSettings.levelsCompleted;
+
+        // Populate World 1 levels
+        this.populateWorldLevels(1);
+
+        modal.classList.add('show');
+    }
+
+    hideLevelSelect() {
+        document.getElementById('levelSelectModal').classList.remove('show');
+    }
+
+    populateWorldLevels(worldId) {
+        const world = WORLDS[worldId];
+        if (!world) return;
+
+        const levelsGrid = document.getElementById(`world-${worldId}-levels`);
+        levelsGrid.innerHTML = '';
+
+        const totalStars = this.playerSettings.getTotalStars();
+        let worldStars = 0;
+
+        world.levels.forEach(level => {
+            const levelCard = document.createElement('div');
+            levelCard.className = 'level-card';
+
+            const isUnlocked = isLevelUnlocked(level.id, totalStars);
+            const levelStars = this.playerSettings.getStarsForLevel(level.id);
+
+            if (levelStars > 0) {
+                levelCard.classList.add('completed');
+                worldStars += levelStars;
+            }
+
+            if (!isUnlocked) {
+                levelCard.classList.add('locked');
+            }
+
+            const starsDisplay = levelStars > 0
+                ? '★'.repeat(levelStars) + '☆'.repeat(3 - levelStars)
+                : '☆☆☆';
+
+            levelCard.innerHTML = `
+                <div class="level-number">${level.id}</div>
+                <div class="level-name">${level.name}</div>
+                <div class="level-stars">${starsDisplay}</div>
+            `;
+
+            if (isUnlocked) {
+                levelCard.onclick = () => this.selectLevel(level.id);
+            } else {
+                levelCard.title = `Unlock with ${level.unlockRequirement} total stars`;
+            }
+
+            levelsGrid.appendChild(levelCard);
+        });
+
+        // Update world stars display
+        const worldStarsEl = document.getElementById(`world-${worldId}-stars`);
+        if (worldStarsEl) {
+            worldStarsEl.textContent = `⭐ ${worldStars}/${world.levels.length * 3}`;
+        }
+    }
+
+    selectLevel(levelId) {
+        this.selectedLevel = levelId;
+        this.hideLevelSelect();
+        this.showLevelIntro(levelId);
+    }
+
+    // Level Intro Modal Methods
+    showLevelIntro(levelId) {
+        const level = getLevelById(levelId);
+        if (!level) return;
+
+        const modal = document.getElementById('levelIntroModal');
+
+        // Update level info
+        document.getElementById('intro-level-name').textContent = `Level ${level.id}: ${level.name}`;
+        document.getElementById('intro-level-description').textContent = level.description;
+        document.getElementById('intro-maze-size').textContent = `${level.size}×${level.size}`;
+        document.getElementById('intro-maze-type').textContent = level.mazeType.charAt(0).toUpperCase() + level.mazeType.slice(1);
+        document.getElementById('intro-complexity').textContent = level.complexity.charAt(0).toUpperCase() + level.complexity.slice(1);
+
+        // Display objectives
+        const objectivesList = document.getElementById('intro-objectives-list');
+        objectivesList.innerHTML = `
+            <div class="objective-item">✓ ${level.objectives.primary}</div>
+            ${level.objectives.secondary.map(obj => `<div class="objective-item">• ${obj}</div>`).join('')}
+        `;
+
+        // Display star requirements
+        const starRequirements = document.getElementById('intro-star-requirements');
+        starRequirements.innerHTML = `
+            <div class="star-requirement-item">⭐ ${level.starRequirements[1].description}</div>
+            <div class="star-requirement-item">⭐⭐ ${level.starRequirements[2].description}</div>
+            <div class="star-requirement-item">⭐⭐⭐ ${level.starRequirements[3].description}</div>
+        `;
+
+        modal.classList.add('show');
+    }
+
+    hideLevelIntro() {
+        document.getElementById('levelIntroModal').classList.remove('show');
+        this.selectedLevel = null;
+    }
+
+    startSelectedLevel() {
+        if (this.selectedLevel) {
+            this.currentLevel = this.selectedLevel;
+            this.playerSettings.setCurrentLevel(this.currentLevel);
+            this.hideLevelIntro();
+            this.restart();
+        }
+    }
+
+    // Update Total Stars Display
+    updateTotalStarsDisplay() {
+        const totalStars = this.playerSettings.getTotalStars();
+        const maxStars = getMaxStars();
+
+        const totalStarsEl = document.getElementById('total-stars');
+        const maxStarsEl = document.getElementById('max-stars');
+
+        if (totalStarsEl) totalStarsEl.textContent = totalStars;
+        if (maxStarsEl) maxStarsEl.textContent = maxStars;
+    }
+
+    // Get objectives completion HTML for game over modal
+    getObjectivesCompletionHTML() {
+        const level = this.currentLevelConfig;
+        if (!level) return '';
+
+        const requirements = level.starRequirements;
+        let html = '<div style="text-align: left; margin-bottom: 15px;"><h4 style="color: var(--gold);">Objectives Completed:</h4>';
+
+        // Check star 1
+        const star1Met = this.state.won;
+        html += `<div style="margin: 5px 0;">${star1Met ? '✅' : '❌'} ${requirements[1].description}</div>`;
+
+        // Check star 2
+        let star2Met = true;
+        if (requirements[2].gemsPercent !== undefined) {
+            const gemsRequired = Math.ceil(this.state.totalGems * requirements[2].gemsPercent / 100);
+            const collected = this.state.gemsCollected >= gemsRequired;
+            star2Met = star2Met && collected;
+            html += `<div style="margin: 5px 0;">${collected ? '✅' : '❌'} ${requirements[2].description} (${this.state.gemsCollected}/${gemsRequired})</div>`;
+        }
+        if (requirements[2].bonusCollected && star2Met) {
+            const collected = this.state.bonusCollected;
+            star2Met = star2Met && collected;
+            html += `<div style="margin: 5px 0;">${collected ? '✅' : '❌'} Collect bonus treasure</div>`;
+        }
+
+        // Check star 3
+        let star3Met = true;
+        if (requirements[3].gemsPercent !== undefined) {
+            const gemsRequired = Math.ceil(this.state.totalGems * requirements[3].gemsPercent / 100);
+            const collected = this.state.gemsCollected >= gemsRequired;
+            star3Met = star3Met && collected;
+        }
+        if (requirements[3].maxTrapsHit !== undefined) {
+            const trapsOK = this.state.trapsHit <= requirements[3].maxTrapsHit;
+            star3Met = star3Met && trapsOK;
+            html += `<div style="margin: 5px 0;">${trapsOK ? '✅' : '❌'} ${requirements[3].description} (Hit: ${this.state.trapsHit})</div>`;
+        }
+        if (requirements[3].powerUpsUsed !== undefined) {
+            const powerUpsOK = this.state.powerUpsUsed >= requirements[3].powerUpsUsed;
+            star3Met = star3Met && powerUpsOK;
+            html += `<div style="margin: 5px 0;">${powerUpsOK ? '✅' : '❌'} Use power-up (Used: ${this.state.powerUpsUsed})</div>`;
+        }
+
+        html += '</div>';
+        return html;
     }
 }

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wrangler whoami:*)",
+      "Bash(wrangler pages deploy:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(python -m http.server:*)",
+      "Bash(node diagnose-maze.js:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

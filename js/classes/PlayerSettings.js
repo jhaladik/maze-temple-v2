@@ -19,6 +19,7 @@ export class PlayerSettings {
             this.levelsCompleted = data.levelsCompleted || 0;
             this.threeStarLevels = data.threeStarLevels || 0;
             this.levelStars = data.levelStars || {};
+            this.currentLevel = data.currentLevel || 1; // Track current level for progression
         } else {
             this.name = 'Player';
             this.skin = '🤖';
@@ -29,6 +30,7 @@ export class PlayerSettings {
             this.levelsCompleted = 0;
             this.threeStarLevels = 0;
             this.levelStars = {};
+            this.currentLevel = 1;
         }
     }
 
@@ -42,7 +44,8 @@ export class PlayerSettings {
             totalScore: this.totalScore,
             levelsCompleted: this.levelsCompleted,
             threeStarLevels: this.threeStarLevels,
-            levelStars: this.levelStars
+            levelStars: this.levelStars,
+            currentLevel: this.currentLevel
         }));
     }
 
@@ -57,6 +60,38 @@ export class PlayerSettings {
         }
         this.levelsCompleted = Object.keys(this.levelStars).length;
         this.threeStarLevels = Object.values(this.levelStars).filter(s => s === 3).length;
+
+        // Update current level to next level if this is the current level
+        if (level === this.currentLevel) {
+            this.currentLevel = level + 1;
+        }
+
+        this.save();
+    }
+
+    // Get total stars earned across all levels
+    getTotalStars() {
+        return Object.values(this.levelStars).reduce((sum, stars) => sum + stars, 0);
+    }
+
+    // Get stars for a specific level (0 if not completed)
+    getStarsForLevel(level) {
+        return this.levelStars[level] || 0;
+    }
+
+    // Check if a level has been completed (any stars)
+    isLevelCompleted(level) {
+        return this.levelStars[level] > 0;
+    }
+
+    // Get current progress level (furthest unlocked level)
+    getCurrentLevel() {
+        return this.currentLevel;
+    }
+
+    // Set current level (for level select)
+    setCurrentLevel(level) {
+        this.currentLevel = level;
         this.save();
     }
 

@@ -17,7 +17,8 @@
             <div class="player-info">
                 <span id="player-skin">🤖</span>
                 <span id="player-name">Player</span>
-                <button onclick="game.showSettings()" style="padding: 5px 10px; font-size: 0.8em; margin-left: 10px;">⚙️</button>
+                <button onclick="game.showLevelSelect()" style="padding: 5px 10px; font-size: 0.8em; margin-left: 10px;">🗺️</button>
+                <button onclick="game.showSettings()" style="padding: 5px 10px; font-size: 0.8em; margin-left: 5px;">⚙️</button>
             </div>
             <div class="score">💎 Score: <span id="score">0</span></div>
             <div class="timer">
@@ -27,6 +28,9 @@
             <div class="level-info">
                 📊 Level: <span id="level">1</span>
                 <span id="level-stars" style="margin-left: 10px;">☆☆☆</span>
+                <div style="font-size: 0.8em; color: rgba(255,255,255,0.7);">
+                    Total: <span id="total-stars">0</span>⭐ / <span id="max-stars">15</span>
+                </div>
             </div>
             <div class="mode">
                 <button onclick="game.setMode('human')" class="active" id="btn-human">👤 Play</button>
@@ -139,6 +143,69 @@
             </div>
 
             <button onclick="game.saveSettings()" style="width: 100%; padding: 12px; margin-top: 20px;">Save & Close ✓</button>
+        </div>
+    </div>
+
+    <!-- Level Select Modal -->
+    <div class="level-select-modal" id="levelSelectModal">
+        <div class="level-select-content">
+            <h2>🗺️ Select Level</h2>
+            <div class="progress-summary">
+                <div>⭐ Total Stars: <span id="modal-total-stars">0</span> / <span id="modal-max-stars">15</span></div>
+                <div>✓ Levels Completed: <span id="levels-completed-count">0</span> / 5</div>
+            </div>
+
+            <div id="worlds-container" class="worlds-container">
+                <!-- World 1: Training Grounds -->
+                <div class="world-section">
+                    <div class="world-header">
+                        <h3>🏛️ World 1: Training Grounds</h3>
+                        <div class="world-stars" id="world-1-stars">⭐ 0/15</div>
+                    </div>
+                    <div class="levels-grid" id="world-1-levels">
+                        <!-- Levels will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Future Worlds (Locked) -->
+                <div class="world-section locked">
+                    <div class="world-header">
+                        <h3>🔒 World 2: Ancient Halls</h3>
+                        <p style="font-size: 0.9em; color: rgba(255,255,255,0.6);">Complete World 1 with 10⭐ to unlock</p>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="game.hideLevelSelect()" style="width: 100%; padding: 12px; margin-top: 20px;">Close</button>
+        </div>
+    </div>
+
+    <!-- Level Intro Modal -->
+    <div class="level-intro-modal" id="levelIntroModal">
+        <div class="level-intro-content">
+            <h2 id="intro-level-name">Level 1: Baby Steps</h2>
+            <p id="intro-level-description" class="level-description">Your journey begins...</p>
+
+            <div class="objectives-section">
+                <h3>🎯 Objectives</h3>
+                <div id="intro-objectives-list"></div>
+            </div>
+
+            <div class="star-requirements">
+                <h3>⭐ Star Requirements</h3>
+                <div id="intro-star-requirements"></div>
+            </div>
+
+            <div class="level-stats">
+                <div>📐 Size: <span id="intro-maze-size">11×11</span></div>
+                <div>🎨 Type: <span id="intro-maze-type">Classic</span></div>
+                <div>⚙️ Difficulty: <span id="intro-complexity">Easy</span></div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button onclick="game.startSelectedLevel()" style="flex: 1; padding: 12px; background: var(--secondary); color: white; font-weight: bold;">Start Level ▶️</button>
+                <button onclick="game.hideLevelIntro()" style="padding: 12px;">Cancel</button>
+            </div>
         </div>
     </div>
 

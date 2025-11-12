@@ -170,6 +170,7 @@ export class GameState {
                             break;
                         case ELEMENTS.bonus:
                             this.player.score += 50;
+                            this.bonusCollected = true;
                             reward = 50;
                             break;
                         case ELEMENTS.trap:
