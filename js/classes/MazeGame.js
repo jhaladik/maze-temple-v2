@@ -6,6 +6,8 @@ import { PlayerSettings } from './PlayerSettings.js';
 import { GameState } from './GameState.js';
 import { MazeGenerator } from './MazeGenerator.js';
 import { DemoRecorder } from './DemoRecorder.js';
+import { MazeAnalyzer } from './MazeAnalyzer.js';
+import { PerformanceEvaluator } from './PerformanceEvaluator.js';
 
 export class MazeGame {
     constructor() {
@@ -22,6 +24,8 @@ export class MazeGame {
         this.previousPlayerPos = { x: -1, y: -1 };
         this.cellElements = [];
         this.playerSettings = new PlayerSettings();
+        this.mazeAnalyzer = null;
+        this.performanceEvaluator = null;
 
         this.init();
         this.updatePlayerDisplay();
@@ -51,6 +55,27 @@ export class MazeGame {
         // Update cell size for different maze sizes
         const sizeConfig = MAZE_SIZES[mazeSize];
         document.documentElement.style.setProperty('--cell-size', `${sizeConfig.cellSize}px`);
+
+        // Analyze the maze (wait for next tick to ensure maze is fully ready)
+        setTimeout(() => {
+            this.mazeAnalyzer = new MazeAnalyzer(this.state.maze, this.currentLevel);
+
+            // Debug: Check if exit exists
+            console.log('Exit position:', this.mazeAnalyzer.exitPos);
+            console.log('Start position:', this.mazeAnalyzer.startPos);
+            console.log('Gems found:', this.mazeAnalyzer.gems.length);
+
+            const analysis = this.mazeAnalyzer.analyze();
+            console.log('Maze Analysis:', analysis);
+
+            // Debug: Check path results
+            console.log('📊 Path Analysis Results:');
+            console.log('  Direct path:', analysis.paths.directPath.path ? `✅ ${analysis.paths.directPath.steps} steps` : '❌ NULL');
+            console.log('  Collection path:', analysis.paths.collectionPath.path ? `✅ ${analysis.paths.collectionPath.steps} steps` : '❌ NULL');
+            console.log('  Optimal steps for benchmarks:', analysis.benchmarks.optimalSteps);
+
+            this.displayMazeAnalysis(analysis);
+        }, 0);
 
         this.renderInitial();
         this.bindControls();
@@ -332,17 +357,19 @@ export class MazeGame {
         this.state.gameOver = true;
         clearInterval(this.timerInterval);
 
-        // Calculate perfect run bonus
-        let bonus = 0;
-        let bonusText = '';
-        if (this.state.gemsCollected === this.state.totalGems && this.state.totalGems > 0) {
-            bonus = 100;
-            this.state.player.score += bonus;
-            bonusText = '🎉 Perfect Run! All gems collected! +100 bonus';
-        }
+        // Evaluate performance
+        this.performanceEvaluator = new PerformanceEvaluator(
+            this.mazeAnalyzer.analysis,
+            this.state
+        );
+        const evaluation = this.performanceEvaluator.evaluate();
+        console.log('Performance Evaluation:', evaluation);
 
-        // Calculate stars
-        const stars = this.calculateStars();
+        // Use the new scoring system
+        this.state.player.score = evaluation.score.final;
+
+        // Calculate stars from evaluation
+        const stars = evaluation.rating.stars;
 
         // Save progress
         this.playerSettings.addScore(this.state.player.score);
@@ -356,8 +383,8 @@ export class MazeGame {
         // Save high score
         this.saveHighScore();
 
-        // Show modal
-        this.showGameOverModal(stars, bonusText);
+        // Show modal with performance data
+        this.showGameOverModal(stars, evaluation);
     }
 
     handleTimeUp() {
@@ -406,7 +433,7 @@ export class MazeGame {
         return stars;
     }
 
-    showGameOverModal(stars, bonusText) {
+    showGameOverModal(stars, evaluation) {
         const modal = document.getElementById('gameOverModal');
         document.getElementById('modal-title').textContent = '🎯 Level Complete!';
 
@@ -425,9 +452,117 @@ export class MazeGame {
             `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
         document.getElementById('final-steps').textContent = this.state.player.steps;
-        document.getElementById('bonus-info').textContent = bonusText || '';
+
+        // Display performance evaluation
+        if (evaluation) {
+            const bonusInfo = document.getElementById('bonus-info');
+            const perfInfo = document.getElementById('performance-info');
+
+            // Display rating and grade
+            bonusInfo.innerHTML = `Grade: ${evaluation.rating.grade} - ${evaluation.rating.description}`;
+
+            // Display efficiency metrics
+            if (perfInfo) {
+                perfInfo.innerHTML = `
+                    <div class="perf-section">
+                        <h4>📊 Efficiency Metrics</h4>
+                        <div class="perf-bars">
+                            <div class="perf-bar">
+                                <span>Path: ${evaluation.efficiency.path}%</span>
+                                <div class="bar"><div class="fill" style="width: ${evaluation.efficiency.path}%"></div></div>
+                            </div>
+                            <div class="perf-bar">
+                                <span>Collection: ${evaluation.efficiency.collection}%</span>
+                                <div class="bar"><div class="fill" style="width: ${evaluation.efficiency.collection}%"></div></div>
+                            </div>
+                            <div class="perf-bar">
+                                <span>Exploration: ${evaluation.efficiency.exploration}%</span>
+                                <div class="bar"><div class="fill" style="width: ${evaluation.efficiency.exploration}%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="perf-section">
+                        <h4>📈 Comparison</h4>
+                        <p>Optimal: ${evaluation.comparison.optimalSteps} steps</p>
+                        <p>Your run: ${evaluation.comparison.actualSteps} steps (${evaluation.comparison.stepsDifference > 0 ? '+' : ''}${evaluation.comparison.stepsDifference})</p>
+                        <p>Level: <strong>${evaluation.comparison.playerLevel}</strong></p>
+                    </div>
+                    ${evaluation.improvements.length > 0 ? `
+                    <div class="perf-section">
+                        <h4>💡 Top Improvement</h4>
+                        <p class="improvement-${evaluation.improvements[0].priority}">
+                            <strong>${evaluation.improvements[0].category}:</strong> ${evaluation.improvements[0].suggestion}
+                        </p>
+                    </div>
+                    ` : ''}
+                `;
+            }
+        } else {
+            document.getElementById('bonus-info').textContent = '';
+        }
 
         modal.classList.add('show');
+    }
+
+    displayMazeAnalysis(analysis) {
+        const analysisElement = document.getElementById('maze-analysis');
+        if (!analysisElement) {
+            console.warn('Maze analysis element not found in DOM');
+            return;
+        }
+
+        if (!analysis) {
+            analysisElement.innerHTML = `
+                <h4>🎯 Maze Intelligence</h4>
+                <p>Analysis in progress...</p>
+            `;
+            return;
+        }
+
+        const summary = analysis.difficulty;
+        const benchmarks = analysis.benchmarks;
+
+        // Validate data before displaying
+        const optimalSteps = benchmarks.optimalSteps || 'N/A';
+        const optimalStepsDisplay = optimalSteps === 0 ? 'Calculating...' :
+                                     optimalSteps === 'N/A' ? 'No path' :
+                                     `${optimalSteps} steps`;
+
+        analysisElement.innerHTML = `
+            <h4>🎯 Maze Intelligence</h4>
+            <div class="analysis-grid">
+                <div class="analysis-item">
+                    <span class="label">Difficulty:</span>
+                    <span class="value">${summary.rating} (${summary.overall}/100)</span>
+                </div>
+                <div class="analysis-item">
+                    <span class="label">Optimal Path:</span>
+                    <span class="value">${optimalStepsDisplay}</span>
+                </div>
+                <div class="analysis-item">
+                    <span class="label">Decision Points:</span>
+                    <span class="value">${analysis.topology.decisionPoints.length}</span>
+                </div>
+                <div class="analysis-item">
+                    <span class="label">Dead Ends:</span>
+                    <span class="value">${analysis.topology.deadEnds.length}</span>
+                </div>
+            </div>
+            <div class="difficulty-breakdown">
+                <div class="diff-bar">
+                    <span>Structure</span>
+                    <div class="bar"><div class="fill" style="width: ${summary.structural}%"></div></div>
+                </div>
+                <div class="diff-bar">
+                    <span>Navigation</span>
+                    <div class="bar"><div class="fill" style="width: ${summary.navigation}%"></div></div>
+                </div>
+                <div class="diff-bar">
+                    <span>Hazards</span>
+                    <div class="bar"><div class="fill" style="width: ${summary.hazard}%"></div></div>
+                </div>
+            </div>
+        `;
     }
 
     hideGameOverModal() {

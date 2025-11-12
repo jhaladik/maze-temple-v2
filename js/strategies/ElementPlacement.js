@@ -27,19 +27,18 @@ export class ElementPlacement {
     }
 
     placeExit() {
-        // Find farthest point from start (1,1)
+        // Find farthest point from start (1,1) THAT IS REACHABLE
+        // Only search within accessible cells to ensure exit is reachable
+        const accessibleCells = this.getAccessibleCells(1, 1);
+
         let maxDist = 0;
         let bestPos = { x: this.size - 2, y: this.size - 2 };
 
-        for (let y = 1; y < this.size - 1; y++) {
-            for (let x = 1; x < this.size - 1; x++) {
-                if (this.maze[y][x] === ELEMENTS.empty) {
-                    const dist = Math.abs(x - 1) + Math.abs(y - 1);
-                    if (dist > maxDist) {
-                        maxDist = dist;
-                        bestPos = { x, y };
-                    }
-                }
+        for (const cell of accessibleCells) {
+            const dist = Math.abs(cell.x - 1) + Math.abs(cell.y - 1);
+            if (dist > maxDist && this.maze[cell.y][cell.x] === ELEMENTS.empty) {
+                maxDist = dist;
+                bestPos = cell;
             }
         }
 
@@ -126,7 +125,7 @@ export class ElementPlacement {
                 const ny = y + dy;
 
                 if (nx > 0 && nx < this.size - 1 && ny > 0 && ny < this.size - 1 &&
-                    !visited[ny][nx] && this.maze[ny][nx] === ELEMENTS.empty) {
+                    !visited[ny][nx] && this.maze[ny][nx] !== ELEMENTS.wall) {  // Allow all non-wall cells
                     visited[ny][nx] = true;
                     queue.push([nx, ny]);
                 }
@@ -158,6 +157,8 @@ export class ElementPlacement {
 
         for (const cell of shuffled) {
             if (placed >= count) break;
+            // Never place elements at starting position (1,1)
+            if (cell.x === 1 && cell.y === 1) continue;
             if (this.maze[cell.y][cell.x] === ELEMENTS.empty) {
                 this.maze[cell.y][cell.x] = element;
                 placed++;
@@ -174,6 +175,9 @@ export class ElementPlacement {
             attempts++;
             const x = Math.floor(Math.random() * (this.size - 2)) + 1;
             const y = Math.floor(Math.random() * (this.size - 2)) + 1;
+
+            // Never place elements at starting position (1,1)
+            if (x === 1 && y === 1) continue;
 
             if (this.maze[y][x] === ELEMENTS.empty) {
                 this.maze[y][x] = element;

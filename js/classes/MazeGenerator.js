@@ -115,6 +115,12 @@ export class MazeGenerator {
             const x = Math.floor(Math.random() * (size - 2)) + 1;
             const y = Math.floor(Math.random() * (size - 2)) + 1;
 
+            // Never place elements at starting position (1,1)
+            if (x === 1 && y === 1) {
+                attempts++;
+                continue;
+            }
+
             if (maze[y][x] === ELEMENTS.empty) {
                 maze[y][x] = element;
                 placed++;
@@ -124,7 +130,8 @@ export class MazeGenerator {
     }
 
     static getAccessibleCells(maze, startX, startY, size) {
-        // BFS to find all cells reachable from start without doors
+        // BFS to find all cells reachable from start
+        // Treats all non-wall cells as walkable (gems, traps, keys, etc.)
         const accessible = [];
         const visited = Array(size).fill().map(() => Array(size).fill(false));
         const queue = [[startX, startY]];
@@ -142,7 +149,7 @@ export class MazeGenerator {
 
                 if (nx >= 0 && nx < size && ny >= 0 && ny < size &&
                     !visited[ny][nx] &&
-                    maze[ny][nx] === ELEMENTS.empty) {
+                    maze[ny][nx] !== ELEMENTS.wall) {  // Allow all non-wall cells (gems, traps, etc.)
                     visited[ny][nx] = true;
                     queue.push([nx, ny]);
                 }
@@ -159,6 +166,8 @@ export class MazeGenerator {
 
         for (const cell of shuffled) {
             if (placed >= count) break;
+            // Never place elements at starting position (1,1)
+            if (cell.x === 1 && cell.y === 1) continue;
             if (maze[cell.y][cell.x] === ELEMENTS.empty) {
                 maze[cell.y][cell.x] = element;
                 placed++;
