@@ -48,6 +48,11 @@
                     <div id="speed-status">Speed: <span>1x</span></div>
                 </div>
 
+                <div id="maze-analysis" class="maze-analysis">
+                    <h4>🎯 Maze Intelligence</h4>
+                    <p>Analyzing...</p>
+                </div>
+
                 <div class="leaderboard">
                     <h3>🏆 Best Scores</h3>
                     <ol id="topScores">
@@ -74,6 +79,7 @@
                 <div>Steps: <span id="final-steps">0</span></div>
                 <div id="bonus-info" style="color: var(--gold);"></div>
             </div>
+            <div id="performance-info" class="performance-info"></div>
             <button onclick="game.nextLevel()">Next Level ➡️</button>
             <button onclick="game.restart()">Restart Level 🔄</button>
         </div>

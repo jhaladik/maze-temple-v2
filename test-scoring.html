@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scoring System Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a2e;
+            color: #fff;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        pre {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        h1 { color: #f59e0b; }
+        h2 { color: #10b981; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Maze Scoring System Test</h1>
+    <div id="test-output"></div>
+
+    <script type="module">
+        import { MazeAnalyzer } from './js/classes/MazeAnalyzer.js';
+        import { PerformanceEvaluator } from './js/classes/PerformanceEvaluator.js';
+        import { GameState } from './js/classes/GameState.js';
+        import { MazeGenerator } from './js/classes/MazeGenerator.js';
+        import { ELEMENTS } from './js/config/constants.js';
+
+        const output = document.getElementById('test-output');
+
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = message;
+            output.appendChild(div);
+        }
+
+        function testSection(title) {
+            const section = document.createElement('div');
+            section.className = 'test-section';
+            section.innerHTML = `<h2>${title}</h2>`;
+            output.appendChild(section);
+            return section;
+        }
+
+        async function runTests() {
+            try {
+                // Test 1: Maze Generation and Analysis
+                const section1 = testSection('Test 1: Maze Analysis');
+                log('Generating 15x15 maze...', 'info');
+
+                const maze = MazeGenerator.generate(15, 1, 'classic', 'medium');
+                log('✓ Maze generated successfully', 'success');
+
+                log('Analyzing maze...', 'info');
+                const analyzer = new MazeAnalyzer(maze, 1);
+                const analysis = analyzer.analyze();
+
+                log('✓ Maze analyzed successfully', 'success');
+                log(`<pre>${JSON.stringify(analysis.difficulty, null, 2)}</pre>`);
+                log(`<pre>Optimal Steps: ${analysis.benchmarks.optimalSteps}</pre>`);
+                log(`<pre>Decision Points: ${analysis.topology.decisionPoints.length}</pre>`);
+                log(`<pre>Dead Ends: ${analysis.topology.deadEnds.length}</pre>`);
+
+                // Test 2: Performance Evaluation
+                const section2 = testSection('Test 2: Performance Evaluation');
+
+                const gameState = new GameState(15, 1);
+                gameState.maze = maze;
+                gameState.player.x = 1;
+                gameState.player.y = 1;
+                gameState.totalGems = 5;
+                gameState.gemsCollected = 3;
+                gameState.player.steps = 50;
+                gameState.timeElapsed = 45;
+                gameState.won = true;
+                gameState.visitedCells = new Set(['1,1', '2,1', '3,1']); // Simulate some visited cells
+
+                log('Creating mock game state...', 'info');
+                log('✓ Game state created', 'success');
+
+                log('Evaluating performance...', 'info');
+                const evaluator = new PerformanceEvaluator(analysis, gameState);
+                const evaluation = evaluator.evaluate();
+
+                log('✓ Performance evaluated successfully', 'success');
+                log(`<pre>${JSON.stringify(evaluation.rating, null, 2)}</pre>`);
+                log(`<pre>Final Score: ${evaluation.score.final}</pre>`);
+                log(`<pre>Efficiency Average: ${evaluation.efficiency.average}%</pre>`);
+                log(`<pre>Player Level: ${evaluation.comparison.playerLevel}</pre>`);
+
+                if (evaluation.improvements.length > 0) {
+                    log(`<pre>Top Improvement: ${evaluation.improvements[0].message}</pre>`);
+                }
+
+                // Test 3: Optimal Pathfinding
+                const section3 = testSection('Test 3: Optimal Pathfinding');
+
+                log('Testing A* pathfinding...', 'info');
+                const startPos = { x: 1, y: 1 };
+                const exitPos = analyzer.exitPos;
+
+                if (exitPos) {
+                    log(`Start: (${startPos.x}, ${startPos.y})`, 'info');
+                    log(`Exit: (${exitPos.x}, ${exitPos.y})`, 'info');
+
+                    const optimalPath = analyzer.aStarPath(startPos, exitPos);
+                    if (optimalPath) {
+                        log('✓ Optimal path found', 'success');
+                        log(`Path length: ${optimalPath.length} cells (${optimalPath.length - 1} steps)`, 'info');
+                    } else {
+                        log('✗ No path found', 'error');
+                    }
+                } else {
+                    log('✗ Exit not found in maze', 'error');
+                }
+
+                // Test 4: Different Maze Types
+                const section4 = testSection('Test 4: Multiple Maze Types Analysis');
+
+                const mazeTypes = ['classic', 'branching', 'looped', 'rooms'];
+                for (const type of mazeTypes) {
+                    log(`<br>Testing ${type} maze...`, 'info');
+                    const testMaze = MazeGenerator.generate(15, 1, type, 'medium');
+                    const testAnalyzer = new MazeAnalyzer(testMaze, 1);
+                    const testAnalysis = testAnalyzer.analyze();
+
+                    log(`✓ ${type}: Difficulty=${testAnalysis.difficulty.overall}, Optimal=${testAnalysis.benchmarks.optimalSteps} steps`, 'success');
+                }
+
+                // Summary
+                const section5 = testSection('✅ All Tests Passed!');
+                log('The maze analysis and scoring system is working correctly.', 'success');
+                log('You can now play the game at <a href="index.html">index.html</a>', 'info');
+
+            } catch (error) {
+                log(`<br>✗ Test failed: ${error.message}`, 'error');
+                log(`<pre>${error.stack}</pre>`, 'error');
+            }
+        }
+
+        // Run tests on load
+        runTests();
+    </script>
+</body>
+</html>

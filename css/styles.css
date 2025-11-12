@@ -437,6 +437,145 @@ body {
     font-weight: bold;
 }
 
+/* Maze Analysis Styles */
+.maze-analysis {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.maze-analysis h4 {
+    margin-bottom: 12px;
+    font-size: 1.1em;
+    color: var(--gold);
+}
+
+.analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.analysis-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.9em;
+}
+
+.analysis-item .label {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85em;
+}
+
+.analysis-item .value {
+    color: white;
+    font-weight: bold;
+    font-size: 1em;
+}
+
+.difficulty-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.diff-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.diff-bar span {
+    width: 70px;
+    font-size: 0.85em;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.diff-bar .bar {
+    flex: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.diff-bar .bar .fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--secondary), var(--gold));
+    transition: width 0.5s ease;
+}
+
+/* Performance Info Styles */
+.performance-info {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.perf-section {
+    margin-bottom: 20px;
+}
+
+.perf-section h4 {
+    color: var(--gold);
+    margin-bottom: 10px;
+    font-size: 1em;
+}
+
+.perf-section p {
+    margin: 5px 0;
+    font-size: 0.9em;
+    line-height: 1.6;
+}
+
+.perf-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.perf-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.perf-bar span {
+    font-size: 0.85em;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.perf-bar .bar {
+    height: 12px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.perf-bar .bar .fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    transition: width 0.5s ease;
+}
+
+.improvement-high {
+    color: #fca5a5;
+}
+
+.improvement-medium {
+    color: #fcd34d;
+}
+
+.improvement-low {
+    color: #86efac;
+}
+
 @media (max-width: 768px) {
     :root {
         --cell-size: 24px;
@@ -453,5 +592,13 @@ body {
 
     .game-area {
         flex-direction: column;
+    }
+
+    .maze-analysis {
+        margin-bottom: 10px;
+    }
+
+    .analysis-grid {
+        grid-template-columns: 1fr;
     }
 }

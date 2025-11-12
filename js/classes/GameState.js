@@ -33,6 +33,15 @@ export class GameState {
         this.gemsCollected = 0;
         this.timeLimit = TIME_LIMITS[level] || null;
         this.isTimedLevel = TIME_LIMITS.hasOwnProperty(level);
+
+        // Performance tracking metrics
+        this.visitedCells = new Set();
+        this.backtrackCount = 0;
+        this.trapsHit = 0;
+        this.trapsAvoided = 0;
+        this.powerUpsUsed = 0;
+        this.decisionsMade = [];
+        this.lastPosition = null;
     }
 
     getStateVector() {
@@ -166,8 +175,10 @@ export class GameState {
                         case ELEMENTS.trap:
                             if (!this.powerUps.shieldActive) {
                                 this.player.score = Math.max(0, this.player.score - 20);
+                                this.trapsHit++;
                                 reward = -20;
                             } else {
+                                this.trapsAvoided++;
                                 reward = 0; // Shield protected
                             }
                             break;
@@ -177,10 +188,12 @@ export class GameState {
                             break;
                         case ELEMENTS.shield:
                             this.activateShield();
+                            this.powerUpsUsed++;
                             reward = 20;
                             break;
                         case ELEMENTS.speed:
                             this.activateSpeed();
+                            this.powerUpsUsed++;
                             reward = 20;
                             break;
                         case ELEMENTS.exit:
@@ -201,6 +214,31 @@ export class GameState {
         }
 
         if (moved) {
+            // Track visited cells
+            const cellKey = `${newX},${newY}`;
+            const wasVisited = this.visitedCells.has(cellKey);
+
+            if (wasVisited && this.lastPosition) {
+                // Check if this is backtracking (returning to a previously visited cell)
+                this.backtrackCount++;
+            }
+
+            this.visitedCells.add(cellKey);
+
+            // Track decision points
+            if (this.lastPosition) {
+                const neighbors = this.countWalkableNeighbors(newX, newY);
+                if (neighbors >= 3) {
+                    this.decisionsMade.push({
+                        position: { x: newX, y: newY },
+                        action,
+                        branches: neighbors,
+                        step: this.player.steps
+                    });
+                }
+            }
+
+            this.lastPosition = { x: this.player.x, y: this.player.y };
             this.player.x = newX;
             this.player.y = newY;
             this.player.steps++;
@@ -218,6 +256,23 @@ export class GameState {
         }
 
         return [this.getStateVector(), reward, this.gameOver];
+    }
+
+    countWalkableNeighbors(x, y) {
+        let count = 0;
+        const directions = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+        for (const [dx, dy] of directions) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && nx < this.size && ny >= 0 && ny < this.size) {
+                if (this.maze[ny][nx] !== ELEMENTS.wall) {
+                    count++;
+                }
+            }
+        }
+
+        return count;
     }
 
     activateShield() {
