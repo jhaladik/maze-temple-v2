@@ -373,13 +373,24 @@
                 quality += 0.2;
             }
 
-            // Bonus for having collectibles
-            if (analysis.totalGems > 0) quality += 0.1;
-            if (analysis.totalKeys > 0 && analysis.totalLocks > 0) quality += 0.1;
-            if (analysis.totalEnemies > 0 && analysis.totalShields > 0) quality += 0.1;
+            // Count shields and enemies directly from maze
+            let shieldCount = 0;
+            let enemyCount = 0;
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    if (maze[y][x] === ELEMENTS.shield) shieldCount++;
+                    if (maze[y][x] === ELEMENTS.enemy) enemyCount++;
+                }
+            }
 
-            // Ensure not too easy or too hard
-            if (analysis.difficultyScore > 0.3 && analysis.difficultyScore < 0.8) {
+            // Bonus for having collectibles
+            if (analysis.elements.gems.count > 0) quality += 0.1;
+            if (analysis.elements.keys.count > 0 && analysis.elements.doors.count > 0) quality += 0.1;
+            if (enemyCount > 0 && shieldCount > 0) quality += 0.1;
+
+            // Ensure not too easy or too hard (difficulty.overall is 0-100)
+            const difficultyRatio = analysis.difficulty.overall / 100;
+            if (difficultyRatio > 0.3 && difficultyRatio < 0.8) {
                 quality += 0.1;
             }
 
@@ -465,8 +476,8 @@
                     <div>
                         <strong>Maze #${index + 1}</strong><br>
                         <small>Steps: ${item.analysis.paths.directPath.path.length} |
-                        Gems: ${item.analysis.totalGems} |
-                        Difficulty: ${item.analysis.difficultyScore.toFixed(2)}</small>
+                        Gems: ${item.analysis.elements.gems.count} |
+                        Difficulty: ${item.analysis.difficulty.overall}/100</small>
                     </div>
                     <span class="quality-badge ${qualityClass}">
                         Quality: ${(item.qualityScore * 100).toFixed(0)}%
@@ -500,14 +511,25 @@
                 gridEl.appendChild(rowDiv);
             });
 
+            // Count shields and enemies from maze
+            let shieldCount = 0;
+            let enemyCount = 0;
+            const size = item.maze.length;
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    if (item.maze[y][x] === ELEMENTS.shield) shieldCount++;
+                    if (item.maze[y][x] === ELEMENTS.enemy) enemyCount++;
+                }
+            }
+
             // Show stats
             document.getElementById('statsSection').style.display = 'block';
             document.getElementById('statOptimalSteps').textContent = item.analysis.paths.directPath.path.length;
-            document.getElementById('statGems').textContent = item.analysis.totalGems;
-            document.getElementById('statKeysLocks').textContent = `${item.analysis.totalKeys} / ${item.analysis.totalLocks}`;
-            document.getElementById('statShields').textContent = item.analysis.totalShields;
-            document.getElementById('statEnemies').textContent = item.analysis.totalEnemies;
-            document.getElementById('statDifficulty').textContent = item.analysis.difficultyScore.toFixed(3);
+            document.getElementById('statGems').textContent = item.analysis.elements.gems.count;
+            document.getElementById('statKeysLocks').textContent = `${item.analysis.elements.keys.count} / ${item.analysis.elements.doors.count}`;
+            document.getElementById('statShields').textContent = shieldCount;
+            document.getElementById('statEnemies').textContent = enemyCount;
+            document.getElementById('statDifficulty').textContent = `${item.analysis.difficulty.overall}/100 (${item.analysis.difficulty.rating})`;
             document.getElementById('statQuality').textContent = item.qualityScore.toFixed(3);
         }
 
@@ -526,6 +548,17 @@
                 const mazeData = JSON.stringify(item.maze).replace(/'/g, "''");
                 const analysis = item.analysis;
 
+                // Count shields and enemies from maze
+                let shieldCount = 0;
+                let enemyCount = 0;
+                const size = item.maze.length;
+                for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size; x++) {
+                        if (item.maze[y][x] === ELEMENTS.shield) shieldCount++;
+                        if (item.maze[y][x] === ELEMENTS.enemy) enemyCount++;
+                    }
+                }
+
                 sql += `-- Maze #${index + 1}\n`;
                 sql += `INSERT INTO mazes (\n`;
                 sql += `    maze_data, size, maze_type, complexity,\n`;
@@ -537,12 +570,12 @@
                 sql += `    '${item.mazeType}',\n`;
                 sql += `    '${item.complexity}',\n`;
                 sql += `    ${analysis.paths.directPath.path.length},\n`;
-                sql += `    ${analysis.totalGems},\n`;
-                sql += `    ${analysis.totalKeys},\n`;
-                sql += `    ${analysis.totalLocks},\n`;
-                sql += `    ${analysis.totalShields},\n`;
-                sql += `    ${analysis.totalEnemies},\n`;
-                sql += `    ${analysis.difficultyScore.toFixed(4)},\n`;
+                sql += `    ${analysis.elements.gems.count},\n`;
+                sql += `    ${analysis.elements.keys.count},\n`;
+                sql += `    ${analysis.elements.doors.count},\n`;
+                sql += `    ${shieldCount},\n`;
+                sql += `    ${enemyCount},\n`;
+                sql += `    ${(analysis.difficulty.overall / 100).toFixed(4)},\n`;
                 sql += `    ${item.qualityScore.toFixed(4)}\n`;
                 sql += `);\n\n`;
             });
