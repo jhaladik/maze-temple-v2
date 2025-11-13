@@ -397,7 +397,13 @@ export class MazeGame {
 
         // Save progress
         this.playerSettings.addScore(this.state.player.score);
-        this.playerSettings.completeLevel(this.currentLevel, stars);
+        this.playerSettings.completeLevel(
+            this.currentLevel,
+            stars,
+            this.state.player.score,
+            this.state.timeElapsed,
+            this.state.player.steps
+        );
         this.updateTotalStarsDisplay();
 
         // Save demo

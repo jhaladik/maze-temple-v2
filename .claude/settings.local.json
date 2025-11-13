@@ -7,7 +7,13 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(python -m http.server:*)",
-      "Bash(node diagnose-maze.js:*)"
+      "Bash(node diagnose-maze.js:*)",
+      "Bash(wrangler pages deployment list:*)",
+      "Bash(wrangler d1 create:*)",
+      "Bash(wrangler d1 execute:*)",
+      "Bash(wrangler dev:*)",
+      "Bash(curl:*)",
+      "Bash(wrangler deploy:*)"
     ],
     "deny": [],
     "ask": []
