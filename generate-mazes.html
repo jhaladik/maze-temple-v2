@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Generator - Database Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .controls {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: inline-block;
+            width: 150px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        select, input, button {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .output {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .maze-preview {
+            background: #000;
+            padding: 10px;
+            border-radius: 8px;
+            overflow: auto;
+        }
+
+        .maze-grid {
+            display: inline-block;
+            line-height: 1;
+            font-size: 16px;
+            font-family: monospace;
+        }
+
+        .stats {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .stats h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .sql-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .progress {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f4ff;
+            border-radius: 8px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background: #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .maze-list {
+            margin-top: 20px;
+        }
+
+        .maze-item {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .maze-item.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .quality-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .quality-excellent {
+            background: #4caf50;
+            color: white;
+        }
+
+        .quality-good {
+            background: #8bc34a;
+            color: white;
+        }
+
+        .quality-fair {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .quality-poor {
+            background: #ff5722;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏛️ Maze Database Generator</h1>
+        <p class="subtitle">Generate, analyze, and export mazes for the MAZE TEMPLE database</p>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Level ID:</label>
+                <input type="number" id="levelId" value="1" min="1" max="100">
+            </div>
+
+            <div class="control-group">
+                <label>Maze Size:</label>
+                <select id="mazeSize">
+                    <option value="11">11x11 (Small)</option>
+                    <option value="15" selected>15x15 (Medium)</option>
+                    <option value="21">21x21 (Large)</option>
+                    <option value="31">31x31 (Huge)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Maze Type:</label>
+                <select id="mazeType">
+                    <option value="classic" selected>Classic (Recursive Backtracker)</option>
+                    <option value="spiral">Spiral</option>
+                    <option value="binary_tree">Binary Tree</option>
+                    <option value="aldous_broder">Aldous-Broder</option>
+                    <option value="wilson">Wilson's Algorithm</option>
+                    <option value="kruskal">Kruskal's</option>
+                    <option value="eller">Eller's</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Complexity:</label>
+                <select id="complexity">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Generate Count:</label>
+                <input type="number" id="generateCount" value="10" min="1" max="100">
+            </div>
+
+            <div class="control-group">
+                <label>Min Quality:</label>
+                <input type="number" id="minQuality" value="0.7" min="0" max="1" step="0.1">
+            </div>
+
+            <div class="control-group">
+                <button id="generateBtn">🎲 Generate Mazes</button>
+                <button id="exportBtn" disabled>📋 Copy SQL to Clipboard</button>
+                <button id="clearBtn">🗑️ Clear All</button>
+            </div>
+        </div>
+
+        <div class="progress" id="progressSection" style="display: none;">
+            <div><strong>Progress:</strong> <span id="progressText">0 / 0</span></div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+            </div>
+        </div>
+
+        <div class="output">
+            <div>
+                <h3>Generated Mazes (<span id="mazeCount">0</span>)</h3>
+                <div class="maze-list" id="mazeList"></div>
+            </div>
+
+            <div>
+                <h3>Preview & Stats</h3>
+                <div class="stats" id="statsSection" style="display: none;">
+                    <h3>Maze Statistics</h3>
+                    <div class="stat-item">
+                        <span>Optimal Steps:</span>
+                        <strong id="statOptimalSteps">-</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Total Gems:</span>
+                        <strong id="statGems">-</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Keys / Locks:</span>
+                        <strong id="statKeysLocks">-</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Shields:</span>
+                        <strong id="statShields">-</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Enemies:</span>
+                        <strong id="statEnemies">-</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Difficulty Score:</span>
+                        <strong id="statDifficulty">-</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Quality Score:</span>
+                        <strong id="statQuality">-</strong>
+                    </div>
+                </div>
+
+                <div class="maze-preview" id="mazePreview">
+                    <div class="maze-grid" id="mazeGrid">Select a maze to preview</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <h3>SQL Export</h3>
+            <div class="sql-output" id="sqlOutput">-- Generated SQL will appear here after generating mazes</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { MazeGenerator } from './js/classes/MazeGenerator.js';
+        import { MazeAnalyzer } from './js/classes/MazeAnalyzer.js';
+        import { ELEMENTS } from './js/config/constants.js';
+
+        let generatedMazes = [];
+        let selectedMazeIndex = null;
+
+        const elementToEmoji = {
+            [ELEMENTS.wall]: '⬛',
+            [ELEMENTS.empty]: '⬜',
+            [ELEMENTS.exit]: '🚪',
+            [ELEMENTS.gem]: '💎',
+            [ELEMENTS.key]: '🔑',
+            [ELEMENTS.door]: '🔒',
+            [ELEMENTS.shield]: '🛡️',
+            [ELEMENTS.enemy]: '👾',
+            [ELEMENTS.bonus]: '⭐',
+            [ELEMENTS.trap]: '💥',
+            [ELEMENTS.speed]: '⚡'
+        };
+
+        // Calculate quality score
+        function calculateQualityScore(maze, analysis) {
+            let quality = 0.5; // Base quality
+
+            // Check if maze is solvable
+            if (!analysis.paths.directPath || analysis.paths.directPath.path.length === 0) {
+                return 0; // Unsolvable maze
+            }
+
+            const optimalSteps = analysis.paths.directPath.path.length;
+            const size = maze.length;
+
+            // Prefer medium-length paths (not too short, not too long)
+            const expectedSteps = size * 1.5;
+            const stepRatio = optimalSteps / expectedSteps;
+            if (stepRatio > 0.8 && stepRatio < 1.5) {
+                quality += 0.2;
+            }
+
+            // Bonus for having collectibles
+            if (analysis.totalGems > 0) quality += 0.1;
+            if (analysis.totalKeys > 0 && analysis.totalLocks > 0) quality += 0.1;
+            if (analysis.totalEnemies > 0 && analysis.totalShields > 0) quality += 0.1;
+
+            // Ensure not too easy or too hard
+            if (analysis.difficultyScore > 0.3 && analysis.difficultyScore < 0.8) {
+                quality += 0.1;
+            }
+
+            return Math.min(quality, 1.0);
+        }
+
+        // Generate mazes
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const levelId = parseInt(document.getElementById('levelId').value);
+            const size = parseInt(document.getElementById('mazeSize').value);
+            const mazeType = document.getElementById('mazeType').value;
+            const complexity = document.getElementById('complexity').value;
+            const count = parseInt(document.getElementById('generateCount').value);
+            const minQuality = parseFloat(document.getElementById('minQuality').value);
+
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('progressSection').style.display = 'block';
+
+            generatedMazes = [];
+
+            let generated = 0;
+            let accepted = 0;
+
+            for (let i = 0; i < count; i++) {
+                // Generate maze
+                const maze = MazeGenerator.generate(size, levelId, mazeType, complexity);
+
+                // Analyze maze
+                const analyzer = new MazeAnalyzer(maze, levelId);
+                const analysis = analyzer.analyze();
+
+                // Calculate quality
+                const qualityScore = calculateQualityScore(maze, analysis);
+
+                generated++;
+
+                // Only accept high-quality mazes
+                if (qualityScore >= minQuality) {
+                    generatedMazes.push({
+                        maze,
+                        analysis,
+                        qualityScore,
+                        levelId,
+                        size,
+                        mazeType,
+                        complexity
+                    });
+                    accepted++;
+                }
+
+                // Update progress
+                const progress = ((i + 1) / count) * 100;
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('progressFill').textContent = Math.round(progress) + '%';
+                document.getElementById('progressText').textContent = `${accepted} accepted / ${generated} generated`;
+
+                // Allow UI to update
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+
+            document.getElementById('generateBtn').disabled = false;
+            renderMazeList();
+            generateSQL();
+        });
+
+        // Render maze list
+        function renderMazeList() {
+            const listEl = document.getElementById('mazeList');
+            listEl.innerHTML = '';
+
+            document.getElementById('mazeCount').textContent = generatedMazes.length;
+
+            generatedMazes.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'maze-item' + (index === selectedMazeIndex ? ' selected' : '');
+
+                let qualityClass = 'quality-poor';
+                if (item.qualityScore >= 0.9) qualityClass = 'quality-excellent';
+                else if (item.qualityScore >= 0.8) qualityClass = 'quality-good';
+                else if (item.qualityScore >= 0.7) qualityClass = 'quality-fair';
+
+                div.innerHTML = `
+                    <div>
+                        <strong>Maze #${index + 1}</strong><br>
+                        <small>Steps: ${item.analysis.paths.directPath.path.length} |
+                        Gems: ${item.analysis.totalGems} |
+                        Difficulty: ${item.analysis.difficultyScore.toFixed(2)}</small>
+                    </div>
+                    <span class="quality-badge ${qualityClass}">
+                        Quality: ${(item.qualityScore * 100).toFixed(0)}%
+                    </span>
+                `;
+
+                div.addEventListener('click', () => {
+                    selectedMazeIndex = index;
+                    renderMazeList();
+                    showMazePreview(item);
+                });
+
+                listEl.appendChild(div);
+            });
+
+            document.getElementById('exportBtn').disabled = generatedMazes.length === 0;
+        }
+
+        // Show maze preview
+        function showMazePreview(item) {
+            const gridEl = document.getElementById('mazeGrid');
+            gridEl.innerHTML = '';
+
+            item.maze.forEach(row => {
+                const rowDiv = document.createElement('div');
+                row.forEach(cell => {
+                    const span = document.createElement('span');
+                    span.textContent = elementToEmoji[cell] || '❓';
+                    rowDiv.appendChild(span);
+                });
+                gridEl.appendChild(rowDiv);
+            });
+
+            // Show stats
+            document.getElementById('statsSection').style.display = 'block';
+            document.getElementById('statOptimalSteps').textContent = item.analysis.paths.directPath.path.length;
+            document.getElementById('statGems').textContent = item.analysis.totalGems;
+            document.getElementById('statKeysLocks').textContent = `${item.analysis.totalKeys} / ${item.analysis.totalLocks}`;
+            document.getElementById('statShields').textContent = item.analysis.totalShields;
+            document.getElementById('statEnemies').textContent = item.analysis.totalEnemies;
+            document.getElementById('statDifficulty').textContent = item.analysis.difficultyScore.toFixed(3);
+            document.getElementById('statQuality').textContent = item.qualityScore.toFixed(3);
+        }
+
+        // Generate SQL
+        function generateSQL() {
+            if (generatedMazes.length === 0) {
+                document.getElementById('sqlOutput').textContent = '-- No mazes generated yet';
+                return;
+            }
+
+            let sql = `-- Generated Mazes for Database\n`;
+            sql += `-- Total mazes: ${generatedMazes.length}\n`;
+            sql += `-- Generated: ${new Date().toISOString()}\n\n`;
+
+            generatedMazes.forEach((item, index) => {
+                const mazeData = JSON.stringify(item.maze).replace(/'/g, "''");
+                const analysis = item.analysis;
+
+                sql += `-- Maze #${index + 1}\n`;
+                sql += `INSERT INTO mazes (\n`;
+                sql += `    maze_data, size, maze_type, complexity,\n`;
+                sql += `    optimal_steps, total_gems, total_keys, total_locks, total_shields, total_enemies,\n`;
+                sql += `    difficulty_score, quality_score\n`;
+                sql += `) VALUES (\n`;
+                sql += `    '${mazeData}',\n`;
+                sql += `    ${item.size},\n`;
+                sql += `    '${item.mazeType}',\n`;
+                sql += `    '${item.complexity}',\n`;
+                sql += `    ${analysis.paths.directPath.path.length},\n`;
+                sql += `    ${analysis.totalGems},\n`;
+                sql += `    ${analysis.totalKeys},\n`;
+                sql += `    ${analysis.totalLocks},\n`;
+                sql += `    ${analysis.totalShields},\n`;
+                sql += `    ${analysis.totalEnemies},\n`;
+                sql += `    ${analysis.difficultyScore.toFixed(4)},\n`;
+                sql += `    ${item.qualityScore.toFixed(4)}\n`;
+                sql += `);\n\n`;
+            });
+
+            document.getElementById('sqlOutput').textContent = sql;
+        }
+
+        // Export button
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            const sql = document.getElementById('sqlOutput').textContent;
+            navigator.clipboard.writeText(sql).then(() => {
+                alert('SQL copied to clipboard! You can now paste it into a file and run:\nwrangler d1 execute maze-temple-db --file=mazes.sql --remote');
+            });
+        });
+
+        // Clear button
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            generatedMazes = [];
+            selectedMazeIndex = null;
+            document.getElementById('mazeList').innerHTML = '';
+            document.getElementById('mazeCount').textContent = '0';
+            document.getElementById('mazeGrid').textContent = 'Select a maze to preview';
+            document.getElementById('statsSection').style.display = 'none';
+            document.getElementById('sqlOutput').textContent = '-- No mazes generated yet';
+            document.getElementById('progressSection').style.display = 'none';
+            document.getElementById('exportBtn').disabled = true;
+        });
+    </script>
+</body>
+</html>

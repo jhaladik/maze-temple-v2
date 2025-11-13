@@ -9,6 +9,7 @@ import { DemoRecorder } from './DemoRecorder.js';
 import { MazeAnalyzer } from './MazeAnalyzer.js';
 import { PerformanceEvaluator } from './PerformanceEvaluator.js';
 import { WORLDS, getLevelById, isLevelUnlocked, calculateStarsForLevel, getMaxStars } from '../config/levels.js';
+import { CloudAPI } from '../services/CloudAPI.js';
 
 export class MazeGame {
     constructor() {
@@ -17,6 +18,7 @@ export class MazeGame {
         this.mode = 'human';
         this.currentLevel = 1;
         this.currentLevelConfig = null; // Store current level configuration
+        this.currentMazeId = null; // Track which maze from database is being played
         this.selectedLevel = null; // Track level selected from level select screen
         this.timerInterval = null;
         this.touchStartX = 0;
@@ -38,7 +40,7 @@ export class MazeGame {
         this.updateTotalStarsDisplay();
     }
 
-    init() {
+    async init() {
         // Load level configuration
         this.currentLevelConfig = getLevelById(this.currentLevel);
 
@@ -54,7 +56,28 @@ export class MazeGame {
         const complexity = config.complexity;
 
         this.state = new GameState(mazeSize, this.currentLevel);
-        this.state.maze = MazeGenerator.generate(mazeSize, this.currentLevel, mazeType, complexity);
+
+        // Try to load maze from database first
+        let mazeLoaded = false;
+        try {
+            const mazeData = await CloudAPI.getMazeForLevel(this.currentLevel);
+            if (mazeData && mazeData.maze_data) {
+                console.log(`Loading maze from database (ID: ${mazeData.maze_id})`);
+                this.state.maze = mazeData.maze_data;
+                this.currentMazeId = mazeData.maze_id;
+                mazeLoaded = true;
+            }
+        } catch (error) {
+            console.warn('Failed to load maze from database, will generate new one:', error);
+        }
+
+        // If no maze from database, generate a new one
+        if (!mazeLoaded) {
+            console.log('Generating new maze locally');
+            this.state.maze = MazeGenerator.generate(mazeSize, this.currentLevel, mazeType, complexity);
+            this.currentMazeId = null;
+        }
+
         this.state.player.x = 1;
         this.state.player.y = 1;
         this.previousPlayerPos = { x: 1, y: 1 };
@@ -376,7 +399,7 @@ export class MazeGame {
         }, 1000);
     }
 
-    handleLevelComplete() {
+    async handleLevelComplete() {
         this.state.gameOver = true;
         clearInterval(this.timerInterval);
 
@@ -405,6 +428,32 @@ export class MazeGame {
             this.state.player.steps
         );
         this.updateTotalStarsDisplay();
+
+        // Save maze-specific performance if playing from database
+        if (this.currentMazeId && this.playerSettings.cloudAPI) {
+            try {
+                const metrics = {
+                    gemsCollected: this.state.player.gems || 0,
+                    enemiesDefeated: this.state.player.enemiesDefeated || 0,
+                    shieldsUsed: this.state.player.hasShield ? 1 : 0,
+                    deaths: 0 // We don't track deaths currently
+                };
+
+                await this.playerSettings.cloudAPI.saveMazePerformance(
+                    this.currentMazeId,
+                    this.currentLevel,
+                    true, // completed
+                    stars,
+                    this.state.player.score,
+                    this.state.timeElapsed,
+                    this.state.player.steps,
+                    metrics
+                );
+                console.log(`Maze performance saved for maze ID: ${this.currentMazeId}`);
+            } catch (error) {
+                console.error('Failed to save maze performance:', error);
+            }
+        }
 
         // Save demo
         if (this.mode === 'human') {
@@ -666,17 +715,17 @@ export class MazeGame {
         this.restart();
     }
 
-    restart() {
+    async restart() {
         this.hideGameOverModal();
         clearInterval(this.timerInterval);
-        this.init();
+        await this.init();
     }
 
-    nextLevel() {
+    async nextLevel() {
         this.currentLevel++;
         this.hideGameOverModal();
         clearInterval(this.timerInterval);
-        this.init();
+        await this.init();
     }
 
     updatePlayerDisplay() {

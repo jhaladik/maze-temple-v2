@@ -132,6 +132,87 @@ export class CloudAPI {
             return false;
         }
     }
+
+    // Get maze for level
+    static async getMazeForLevel(levelId) {
+        try {
+            const response = await fetch(`${API_BASE}/maze/${levelId}`);
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    return null; // No maze assigned to level
+                }
+                throw new Error('Failed to fetch maze');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Get maze error:', error);
+            return null;
+        }
+    }
+
+    // Save maze performance
+    async saveMazePerformance(mazeId, levelId, completed, stars, score, time, steps, metrics = {}) {
+        try {
+            const response = await fetch(`${API_BASE}/maze/performance`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Player-Token': this.playerToken
+                },
+                body: JSON.stringify({
+                    maze_id: mazeId,
+                    level_id: levelId,
+                    completed: completed ? 1 : 0,
+                    stars,
+                    score,
+                    time,
+                    steps,
+                    gems_collected: metrics.gemsCollected || 0,
+                    enemies_defeated: metrics.enemiesDefeated || 0,
+                    shields_used: metrics.shieldsUsed || 0,
+                    deaths: metrics.deaths || 0
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save maze performance');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Save maze performance error:', error);
+            throw error;
+        }
+    }
+
+    // Assign maze to level (admin function)
+    static async assignMazeToLevel(levelId, mazeId, rotationPeriod = 'weekly', setCurrent = true) {
+        try {
+            const response = await fetch(`${API_BASE}/maze/assign`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    level_id: levelId,
+                    maze_id: mazeId,
+                    rotation_period: rotationPeriod,
+                    set_current: setCurrent
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to assign maze');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Assign maze error:', error);
+            throw error;
+        }
+    }
 }
 
 // Generate UUID for player ID

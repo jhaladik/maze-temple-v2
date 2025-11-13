@@ -40,6 +40,22 @@ export default {
         return await handleSubmitScore(request, env, corsHeaders);
       }
 
+      // Maze endpoints
+      if (path.startsWith('/api/maze/') && request.method === 'GET') {
+        const levelId = path.split('/')[3];
+        if (levelId) {
+          return await handleGetMaze(levelId, env, corsHeaders);
+        }
+      }
+
+      if (path === '/api/maze/performance' && request.method === 'POST') {
+        return await handleSaveMazePerformance(request, env, corsHeaders);
+      }
+
+      if (path === '/api/maze/assign' && request.method === 'POST') {
+        return await handleAssignMaze(request, env, corsHeaders);
+      }
+
       // Health check
       if (path === '/api/health') {
         return jsonResponse({ status: 'ok', timestamp: Date.now() }, corsHeaders);
@@ -312,6 +328,177 @@ async function handleSubmitScore(request, env, corsHeaders) {
   return jsonResponse({
     success: true,
     message: 'Score submitted to leaderboard'
+  }, corsHeaders);
+}
+
+// Get current maze for a level
+async function handleGetMaze(levelId, env, corsHeaders) {
+  const levelIdInt = parseInt(levelId);
+
+  if (isNaN(levelIdInt)) {
+    return jsonResponse({ error: 'Invalid level ID' }, corsHeaders, 400);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+
+  // Get current active maze for this level
+  const assignment = await env.DB.prepare(`
+    SELECT lm.maze_id, lm.rotation_period, lm.active_from, lm.active_until,
+           m.maze_data, m.size, m.maze_type, m.complexity,
+           m.optimal_steps, m.total_gems, m.total_keys, m.total_locks,
+           m.total_shields, m.total_enemies, m.difficulty_score, m.quality_score
+    FROM level_mazes lm
+    JOIN mazes m ON lm.maze_id = m.id
+    WHERE lm.level_id = ?
+      AND lm.is_current = 1
+      AND lm.active_from <= ?
+      AND (lm.active_until IS NULL OR lm.active_until > ?)
+      AND m.is_active = 1
+    ORDER BY lm.active_from DESC
+    LIMIT 1
+  `).bind(levelIdInt, now, now).first();
+
+  if (!assignment) {
+    // No active maze assigned, return error
+    return jsonResponse({
+      error: 'No maze assigned to this level',
+      level_id: levelIdInt
+    }, corsHeaders, 404);
+  }
+
+  // Update play count
+  await env.DB.prepare(
+    'UPDATE mazes SET play_count = play_count + 1 WHERE id = ?'
+  ).bind(assignment.maze_id).run();
+
+  return jsonResponse({
+    maze_id: assignment.maze_id,
+    level_id: levelIdInt,
+    maze_data: JSON.parse(assignment.maze_data),
+    size: assignment.size,
+    maze_type: assignment.maze_type,
+    complexity: assignment.complexity,
+    optimal_steps: assignment.optimal_steps,
+    total_gems: assignment.total_gems,
+    total_keys: assignment.total_keys,
+    total_locks: assignment.total_locks,
+    total_shields: assignment.total_shields,
+    total_enemies: assignment.total_enemies,
+    difficulty_score: assignment.difficulty_score,
+    quality_score: assignment.quality_score,
+    rotation_period: assignment.rotation_period,
+    active_from: assignment.active_from,
+    active_until: assignment.active_until
+  }, corsHeaders);
+}
+
+// Save player performance on a specific maze
+async function handleSaveMazePerformance(request, env, corsHeaders) {
+  const playerId = request.headers.get('X-Player-Token');
+
+  if (!playerId) {
+    return jsonResponse({ error: 'Missing player token' }, corsHeaders, 401);
+  }
+
+  const data = await request.json();
+  const {
+    maze_id,
+    level_id,
+    completed,
+    stars,
+    score,
+    time,
+    steps,
+    gems_collected,
+    enemies_defeated,
+    shields_used,
+    deaths
+  } = data;
+
+  if (!maze_id || !level_id || time === undefined || steps === undefined) {
+    return jsonResponse({ error: 'Missing required fields' }, corsHeaders, 400);
+  }
+
+  // Insert performance record
+  await env.DB.prepare(`
+    INSERT INTO player_maze_performance (
+      player_id, maze_id, level_id,
+      completed, stars, score, time_seconds, steps,
+      gems_collected, enemies_defeated, shields_used, deaths
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    playerId, maze_id, level_id,
+    completed ? 1 : 0,
+    stars || 0,
+    score || 0,
+    time,
+    steps,
+    gems_collected || 0,
+    enemies_defeated || 0,
+    shields_used || 0,
+    deaths || 0
+  ).run();
+
+  // Get player's rank on this maze
+  const rank = await env.DB.prepare(`
+    SELECT COUNT(*) + 1 as rank
+    FROM player_maze_performance
+    WHERE maze_id = ?
+      AND (score > ? OR (score = ? AND time_seconds < ?))
+  `).bind(maze_id, score, score, time).first();
+
+  return jsonResponse({
+    success: true,
+    message: 'Performance saved',
+    rank: rank.rank
+  }, corsHeaders);
+}
+
+// Assign maze to level (admin function)
+async function handleAssignMaze(request, env, corsHeaders) {
+  const data = await request.json();
+  const {
+    level_id,
+    maze_id,
+    rotation_period,
+    active_from,
+    active_until,
+    set_current
+  } = data;
+
+  if (!level_id || !maze_id || !rotation_period) {
+    return jsonResponse({ error: 'Missing required fields' }, corsHeaders, 400);
+  }
+
+  const activeFrom = active_from || Math.floor(Date.now() / 1000);
+
+  // If set_current, unset all other current assignments for this level
+  if (set_current) {
+    await env.DB.prepare(
+      'UPDATE level_mazes SET is_current = 0 WHERE level_id = ?'
+    ).bind(level_id).run();
+  }
+
+  // Insert assignment
+  await env.DB.prepare(`
+    INSERT INTO level_mazes (
+      level_id, maze_id, rotation_period,
+      active_from, active_until, is_current
+    ) VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(
+    level_id,
+    maze_id,
+    rotation_period,
+    activeFrom,
+    active_until || null,
+    set_current ? 1 : 0
+  ).run();
+
+  return jsonResponse({
+    success: true,
+    message: 'Maze assigned to level',
+    level_id,
+    maze_id
   }, corsHeaders);
 }
 
